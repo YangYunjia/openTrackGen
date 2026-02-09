@@ -22,16 +22,10 @@ class UniformGridIndex {
     this.cells.clear();
   }
 
-  // Insert a line segment by its bounding box.
-  insertLine(index, line) {
-    const minX = Math.min(line.start.x, line.end.x);
-    const maxX = Math.max(line.start.x, line.end.x);
-    const minY = Math.min(line.start.y, line.end.y);
-    const maxY = Math.max(line.start.y, line.end.y);
-
+  // Insert an axis-aligned bounding box into the grid.
+  insertAabb(index, minX, minY, maxX, maxY) {
     const start = this._cellCoords(minX, minY);
     const end = this._cellCoords(maxX, maxY);
-
     for (let cx = start.cx; cx <= end.cx; cx += 1) {
       for (let cy = start.cy; cy <= end.cy; cy += 1) {
         const key = this._key(cx, cy);
@@ -41,10 +35,23 @@ class UniformGridIndex {
     }
   }
 
+  // Insert a line segment by its bounding box.
+  insertLine(index, line) {
+    const minX = Math.min(line.start.x, line.end.x);
+    const maxX = Math.max(line.start.x, line.end.x);
+    const minY = Math.min(line.start.y, line.end.y);
+    const maxY = Math.max(line.start.y, line.end.y);
+    this.insertAabb(index, minX, minY, maxX, maxY);
+  }
+
   // Build the index from all lines.
-  rebuild(lines) {
+  rebuild(items, getAabb) {
     this.clear();
-    lines.forEach((line, i) => this.insertLine(i, line));
+    items.forEach((item, i) => {
+      const box = getAabb(item);
+      if (!box) return;
+      this.insertAabb(i, box.minX, box.minY, box.maxX, box.maxY);
+    });
   }
 
   // Get candidate indices from the mouse cell and neighbors.
@@ -78,20 +85,13 @@ const distanceToSegment = (px, py, ax, ay, bx, by) => {
 };
 
 // Find closest line index within a threshold.
-const findClosestLine = (lines, candidates, x, y, threshold) => {
+const findClosestItem = (items, candidates, x, y, threshold, distanceFn) => {
   let bestIdx = null;
   let bestDist = Infinity;
   for (const idx of candidates) {
-    const line = lines[idx];
-    if (!line) continue;
-    const d = distanceToSegment(
-      x,
-      y,
-      line.start.x,
-      line.start.y,
-      line.end.x,
-      line.end.y
-    );
+    const item = items[idx];
+    if (!item) continue;
+    const d = distanceFn(item, x, y);
     if (d < bestDist) {
       bestDist = d;
       bestIdx = idx;
@@ -111,24 +111,26 @@ class SelectionManager {
     this.selectedIndex = null;
   }
 
-  rebuild(lines) {
-    lines.forEach((line, i) => {
-      line.__index = i;
+  rebuild(items, getAabb) {
+    items.forEach((item, i) => {
+      item.__index = i;
     });
-    this.index.rebuild(lines);
-    if (this.selectedIndex !== null && !lines[this.selectedIndex]) {
+    this.index.rebuild(items, getAabb);
+    if (this.selectedIndex !== null && !items[this.selectedIndex]) {
       this.selectedIndex = null;
     }
   }
 
-  updateHover(lines, worldX, worldY, scale) {
+  updateHover(items, worldX, worldY, scale, distanceFn) {
     const candidates = this.index.queryNearby(worldX, worldY);
-    this.hoverIndex = findClosestLine(
-      lines,
+    this.hoverIndex = findClosestItem(
+      items,
       candidates,
       worldX,
       worldY,
       this.hitRadius / scale
+      ,
+      distanceFn
     );
     return this.hoverIndex;
   }
@@ -147,14 +149,19 @@ class SelectionManager {
 class SelectionToolBase {
   constructor(options) {
     this.manager = new SelectionManager(options);
+    this.items = [];
+    this.getAabb = options.getAabb;
+    this.distanceFn = options.distanceFn;
   }
 
-  rebuild(lines) {
-    this.manager.rebuild(lines);
+  rebuild(items) {
+    this.items = items;
+    this.manager.rebuild(items, this.getAabb);
   }
 
-  updateHover(lines, worldX, worldY, scale) {
-    return this.manager.updateHover(lines, worldX, worldY, scale);
+  updateHover(items, worldX, worldY, scale) {
+    this.items = items;
+    return this.manager.updateHover(items, worldX, worldY, scale, this.distanceFn);
   }
 
   selectHover() {
@@ -169,14 +176,6 @@ class SelectionToolBase {
     this.manager.clearSelection();
   }
 
-  // Remove the hovered line from the list if any.
-  deleteHover(lines) {
-    if (this.manager.hoverIndex === null) return false;
-    lines.splice(this.manager.hoverIndex, 1);
-    this.manager.hoverIndex = null;
-    return true;
-  }
-
   get hoverIndex() {
     return this.manager.hoverIndex;
   }
@@ -189,9 +188,14 @@ class SelectionToolBase {
     this.manager.selectedIndex = value;
   }
 
-  getSelectedLine(lines) {
+  getSelectedItem() {
     if (this.manager.selectedIndex === null) return null;
-    return lines[this.manager.selectedIndex] || null;
+    return this.items[this.manager.selectedIndex] || null;
+  }
+
+  getHoveredItem() {
+    if (this.manager.hoverIndex === null) return null;
+    return this.items[this.manager.hoverIndex] || null;
   }
 }
 

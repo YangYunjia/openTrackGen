@@ -11,6 +11,7 @@
   const btnUndo = document.getElementById("btnUndo");
   const btnSelect = document.getElementById("btnSelect");
   const btnDelete = document.getElementById("btnDelete");
+  const btnText = document.getElementById("btnText");
   const btnColor = document.getElementById("btnColor");
   const colorPicker = document.getElementById("colorPicker");
   const colorSwatch = document.getElementById("colorSwatch");
@@ -19,8 +20,10 @@
   const lineCapSelect = document.getElementById("lineCapSelect");
   const lineAlignSelect = document.getElementById("lineAlignSelect");
   const propStatus = document.getElementById("propStatus");
+  const propType = document.getElementById("propType");
   const propId = document.getElementById("propId");
   const propColor = document.getElementById("propColor");
+  const propText = document.getElementById("propText");
   const btnDeleteSelected = document.getElementById("btnDeleteSelected");
 
   // Device pixel ratio helper for crisp rendering.
@@ -39,6 +42,7 @@
     lineCap: "round",
     lineAlign: "center",
     lines: [],
+    texts: [],
     tool: "draw"
   };
 
@@ -49,7 +53,9 @@
   const selectHitRadius = 6;
   const selectionTool = new SelectionTool({
     cellSize: selectCellSize,
-    hitRadius: selectHitRadius
+    hitRadius: selectHitRadius,
+    getAabb: () => null,
+    distanceFn: () => Infinity
   });
 
   // Resize all canvases to match the CSS size and DPR.
@@ -91,6 +97,89 @@
       align: state.lineAlign
     })
   });
+
+  const textFontFamily = "\"Avenir Next\", \"Futura\", \"Noto Sans\", sans-serif";
+  const defaultTextSize = 12;
+  let textHoverPoint = null;
+
+  const measureTextBox = (text, fontSize) => {
+    const ctx = drawCanvas.getContext("2d");
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.font = `${fontSize}px ${textFontFamily}`;
+    const metrics = ctx.measureText(text);
+    ctx.restore();
+    return {
+      width: metrics.width,
+      height: fontSize
+    };
+  };
+
+  const buildSelectionItems = () => {
+    const items = [];
+    state.lines.forEach((line, index) => {
+      items.push({ kind: "line", index, data: line });
+    });
+    state.texts.forEach((text, index) => {
+      const box = measureTextBox(text.text, text.fontSize);
+      items.push({
+        kind: "text",
+        index,
+        data: { ...text, __box: box }
+      });
+    });
+    return items;
+  };
+
+  const getItemAabb = (item) => {
+    if (!item) return null;
+    if (item.kind === "line") {
+      const line = item.data;
+      const half = (line.width || 1) / 2;
+      const minX = Math.min(line.start.x, line.end.x) - half;
+      const maxX = Math.max(line.start.x, line.end.x) + half;
+      const minY = Math.min(line.start.y, line.end.y) - half;
+      const maxY = Math.max(line.start.y, line.end.y) + half;
+      return { minX, minY, maxX, maxY };
+    }
+    if (item.kind === "text") {
+      const text = item.data;
+      const box = text.__box || measureTextBox(text.text, text.fontSize);
+      const minX = text.x;
+      const minY = text.y;
+      return { minX, minY, maxX: minX + box.width, maxY: minY + box.height };
+    }
+    return null;
+  };
+
+  const distanceToRect = (x, y, minX, minY, maxX, maxY) => {
+    const dx = Math.max(minX - x, 0, x - maxX);
+    const dy = Math.max(minY - y, 0, y - maxY);
+    return Math.hypot(dx, dy);
+  };
+
+  const distanceFn = (item, x, y) => {
+    if (item.kind === "line") {
+      const line = item.data;
+      return distanceToSegment(
+        x,
+        y,
+        line.start.x,
+        line.start.y,
+        line.end.x,
+        line.end.y
+      );
+    }
+    if (item.kind === "text") {
+      const text = item.data;
+      const box = text.__box || measureTextBox(text.text, text.fontSize);
+      return distanceToRect(x, y, text.x, text.y, text.x + box.width, text.y + box.height);
+    }
+    return Infinity;
+  };
+
+  selectionTool.getAabb = getItemAabb;
+  selectionTool.distanceFn = distanceFn;
 
   // Apply current pan/zoom transform in device pixels.
   const setTransform = (ctx) => {
@@ -161,11 +250,19 @@
     setTransform(ctx);
     ctx.lineCap = "round";
 
-    state.lines.forEach((line) => {
+    const hoveredItem = selectionTool.getHoveredItem();
+    const selectedItem = selectionTool.getSelectedItem();
+
+    state.lines.forEach((line, index) => {
       const isHover =
         (state.tool === "select" || state.tool === "delete") &&
-        selectionTool.hoverIndex === line.__index;
-      const isSelected = selectionTool.selectedIndex === line.__index;
+        hoveredItem &&
+        hoveredItem.kind === "line" &&
+        hoveredItem.index === index;
+      const isSelected =
+        selectedItem &&
+        selectedItem.kind === "line" &&
+        selectedItem.index === index;
       const strokeWidth = line.width || 1;
       const align = line.align || "center";
       const cap = line.cap || "round";
@@ -221,6 +318,27 @@
       ctx.setLineDash([]);
     });
 
+    state.texts.forEach((text) => {
+      ctx.fillStyle = text.color;
+      ctx.font = `${text.fontSize}px ${textFontFamily}`;
+      ctx.textBaseline = "top";
+      ctx.textAlign = "left";
+      ctx.fillText(text.text, text.x, text.y);
+    });
+
+    const hovered = selectionTool.getHoveredItem();
+    const selected = selectionTool.getSelectedItem();
+    const highlightText = (item, color) => {
+      if (!item || item.kind !== "text") return;
+      const box = item.data.__box || measureTextBox(item.data.text, item.data.fontSize);
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1 / state.scale;
+      ctx.setLineDash([]);
+      ctx.strokeRect(item.data.x, item.data.y, box.width, box.height);
+    };
+    highlightText(hovered, "#c5482a");
+    highlightText(selected, "#8b2f1a");
+
     ctx.restore();
   };
 
@@ -234,6 +352,13 @@
 
     if (state.tool === "draw") {
       lineTool.drawOverlay(ctx, state.scale, setTransform, state.currentColor);
+    }
+    if (state.tool === "text" && textHoverPoint) {
+      ctx.strokeStyle = "#c5482a";
+      ctx.lineWidth = 2 / state.scale;
+      ctx.beginPath();
+      ctx.arc(textHoverPoint.x, textHoverPoint.y, 4 / state.scale, 0, Math.PI * 2);
+      ctx.stroke();
     }
 
     ctx.restore();
@@ -258,8 +383,18 @@
       return;
     }
 
+    if (state.tool === "text") {
+      const world = screenToWorld(x, y);
+      textHoverPoint = {
+        x: Math.round(world.x / gridSize) * gridSize,
+        y: Math.round(world.y / gridSize) * gridSize
+      };
+      return;
+    }
+
     const world = screenToWorld(x, y);
-    selectionTool.updateHover(state.lines, world.x, world.y, state.scale);
+    const items = buildSelectionItems();
+    selectionTool.updateHover(items, world.x, world.y, state.scale);
   };
 
   // Mouse move: handle panning or hover/preview.
@@ -305,6 +440,24 @@
         return;
       }
 
+      if (state.tool === "text") {
+        const world = screenToWorld(x, y);
+        const snapped = {
+          x: Math.round(world.x / gridSize) * gridSize,
+          y: Math.round(world.y / gridSize) * gridSize
+        };
+        state.texts.push({
+          x: snapped.x,
+          y: snapped.y,
+          text: "Text",
+          fontSize: defaultTextSize,
+          color: state.currentColor
+        });
+        rebuildSelectionIndex();
+        drawAll();
+        return;
+      }
+
       updateHover(x, y);
       if (state.tool === "select") {
         selectionTool.selectHover();
@@ -314,7 +467,14 @@
       }
 
       if (state.tool === "delete") {
-        if (selectionTool.deleteHover(state.lines)) {
+        const hovered = selectionTool.getHoveredItem();
+        if (hovered) {
+          if (hovered.kind === "line") {
+            state.lines.splice(hovered.index, 1);
+          }
+          if (hovered.kind === "text") {
+            state.texts.splice(hovered.index, 1);
+          }
           rebuildSelectionIndex();
           updateProperties();
           drawAll();
@@ -474,6 +634,14 @@
       ctx.setLineDash([]);
     });
 
+    state.texts.forEach((text) => {
+      ctx.fillStyle = text.color;
+      ctx.font = `${text.fontSize}px ${textFontFamily}`;
+      ctx.textBaseline = "top";
+      ctx.textAlign = "left";
+      ctx.fillText(text.text, text.x, text.y);
+    });
+
     ctx.restore();
 
     const a = document.createElement("a");
@@ -487,7 +655,8 @@
     const data = {
       version: 1,
       gridSize,
-      lines: state.lines
+      lines: state.lines,
+      texts: state.texts
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
     const a = document.createElement("a");
@@ -509,20 +678,27 @@
       reader.onload = () => {
         try {
           const data = JSON.parse(reader.result);
-          if (Array.isArray(data.lines)) {
-            state.lines = data.lines.map((line) => ({
-              start: line.start,
-              end: line.end,
-              color: line.color || state.currentColor,
-              width: line.width || 1,
-              style: line.style || "solid",
-              cap: line.cap || "round",
-              align: line.align || "center"
-            }));
-            rebuildSelectionIndex();
-            updateProperties();
-            drawAll();
-          }
+          const lines = Array.isArray(data.lines) ? data.lines : [];
+          const texts = Array.isArray(data.texts) ? data.texts : [];
+          state.lines = lines.map((line) => ({
+            start: line.start,
+            end: line.end,
+            color: line.color || state.currentColor,
+            width: line.width || 1,
+            style: line.style || "solid",
+            cap: line.cap || "round",
+            align: line.align || "center"
+          }));
+          state.texts = texts.map((text) => ({
+            x: text.x,
+            y: text.y,
+            text: text.text || "Text",
+            fontSize: text.fontSize || defaultTextSize,
+            color: text.color || state.currentColor
+          }));
+          rebuildSelectionIndex();
+          updateProperties();
+          drawAll();
         } catch (err) {
           console.error("Failed to read file", err);
         }
@@ -545,28 +721,46 @@
   });
 
   const rebuildSelectionIndex = () => {
-    selectionTool.rebuild(state.lines);
+    const items = buildSelectionItems();
+    selectionTool.rebuild(items);
   };
 
   const updateProperties = () => {
     if (selectionTool.selectedIndex === null) {
       propStatus.textContent = "None";
+      propType.textContent = "-";
       propId.textContent = "-";
       propColor.textContent = "-";
+      propText.value = "";
+      propText.disabled = true;
       btnDeleteSelected.disabled = true;
       return;
     }
-    const line = state.lines[selectionTool.selectedIndex];
-    if (!line) {
+    const item = selectionTool.getSelectedItem();
+    if (!item) {
       propStatus.textContent = "None";
+      propType.textContent = "-";
       propId.textContent = "-";
       propColor.textContent = "-";
+      propText.value = "";
+      propText.disabled = true;
       btnDeleteSelected.disabled = true;
       return;
     }
     propStatus.textContent = "Selected";
-    propId.textContent = String(selectionTool.selectedIndex);
-    propColor.textContent = `${line.color} | ${line.style || "solid"} | ${line.width || 1}x | ${line.cap || "round"} | ${line.align || "center"}`;
+    propType.textContent = item.kind;
+    propId.textContent = String(item.index);
+    if (item.kind === "line") {
+      const line = item.data;
+      propColor.textContent = `${line.color} | ${line.style || "solid"} | ${line.width || 1}x | ${line.cap || "round"} | ${line.align || "center"}`;
+      propText.value = "";
+      propText.disabled = true;
+    } else {
+      const text = item.data;
+      propColor.textContent = text.color;
+      propText.value = text.text;
+      propText.disabled = false;
+    }
     btnDeleteSelected.disabled = false;
   };
 
@@ -575,18 +769,31 @@
     btnLine.classList.toggle("active", tool === "draw");
     btnSelect.classList.toggle("active", tool === "select");
     btnDelete.classList.toggle("active", tool === "delete");
+    btnText.classList.toggle("active", tool === "text");
     selectionTool.clearHover();
+    if (tool !== "select") {
+      selectionTool.clearSelection();
+      updateProperties();
+    }
     lineTool.reset();
+    textHoverPoint = null;
     drawAll();
   };
 
   btnSelect.addEventListener("click", () => setTool("select"));
   btnDelete.addEventListener("click", () => setTool("delete"));
   btnLine.addEventListener("click", () => setTool("draw"));
+  btnText.addEventListener("click", () => setTool("text"));
 
   btnDeleteSelected.addEventListener("click", () => {
-    if (selectionTool.selectedIndex === null) return;
-    state.lines.splice(selectionTool.selectedIndex, 1);
+    const item = selectionTool.getSelectedItem();
+    if (!item) return;
+    if (item.kind === "line") {
+      state.lines.splice(item.index, 1);
+    }
+    if (item.kind === "text") {
+      state.texts.splice(item.index, 1);
+    }
     rebuildSelectionIndex();
     selectionTool.clearSelection();
     updateProperties();
@@ -597,6 +804,14 @@
   colorPicker.addEventListener("input", (e) => {
     state.currentColor = e.target.value;
     colorSwatch.style.background = state.currentColor;
+  });
+
+  propText.addEventListener("input", (e) => {
+    const item = selectionTool.getSelectedItem();
+    if (!item || item.kind !== "text") return;
+    state.texts[item.index].text = e.target.value;
+    rebuildSelectionIndex();
+    drawAll();
   });
 
   lineWidthSelect.addEventListener("change", (e) => {
@@ -621,6 +836,7 @@
   overlayCanvas.addEventListener("mouseleave", () => {
     lineTool.reset();
     selectionTool.clearHover();
+    textHoverPoint = null;
     drawLines();
     drawOverlay();
   });

@@ -16,6 +16,7 @@
       <button id="btnUndo" class="tool-btn">Undo</button>
       <button id="btnSelect" class="tool-btn">Select Line</button>
       <button id="btnDelete" class="tool-btn">Delete Line</button>
+      <button id="btnText" class="tool-btn">Text Box</button>
       <div class="tool-group">
         <div class="tool-label">Line Width</div>
         <select id="lineWidthSelect" class="tool-select">
@@ -67,12 +68,20 @@
         <span id="propStatus" class="property-value">None</span>
       </div>
       <div class="property-row">
+        <span class="property-label">Type</span>
+        <span id="propType" class="property-value">-</span>
+      </div>
+      <div class="property-row">
         <span class="property-label">Line ID</span>
         <span id="propId" class="property-value">-</span>
       </div>
       <div class="property-row">
         <span class="property-label">Color</span>
         <span id="propColor" class="property-value">-</span>
+      </div>
+      <div class="property-row property-col">
+        <span class="property-label">Text</span>
+        <input id="propText" class="tool-input" type="text" value="" disabled />
       </div>
       <button id="btnDeleteSelected" class="tool-btn danger-btn" disabled>Delete Selected</button>
     </aside>
