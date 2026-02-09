@@ -29,10 +29,6 @@
     isPanning: false,
     panStart: { x: 0, y: 0 },
     offsetStart: { x: 0, y: 0 },
-    hoverPoint: null,
-    isDrawing: false,
-    drawStart: null,
-    mouse: { x: 0, y: 0 },
     currentColor: "#000000",
     lines: [],
     tool: "draw"
@@ -43,7 +39,7 @@
   const hoverRadius = 7;
   const selectCellSize = 80;
   const selectHitRadius = 6;
-  const selection = new SelectionManager({
+  const selectionTool = new SelectionTool({
     cellSize: selectCellSize,
     hitRadius: selectHitRadius
   });
@@ -74,6 +70,13 @@
       y: y * state.scale + state.offsetY
     };
   };
+
+  const lineTool = new LineTool({
+    gridSize,
+    hoverRadius,
+    screenToWorld,
+    worldToScreen
+  });
 
   // Apply current pan/zoom transform in device pixels.
   const setTransform = (ctx) => {
@@ -147,8 +150,8 @@
     state.lines.forEach((line) => {
       const isHover =
         (state.tool === "select" || state.tool === "delete") &&
-        selection.hoverIndex === line.__index;
-      const isSelected = selection.selectedIndex === line.__index;
+        selectionTool.hoverIndex === line.__index;
+      const isSelected = selectionTool.selectedIndex === line.__index;
       ctx.strokeStyle = isSelected ? "#8b2f1a" : (isHover ? "#c5482a" : line.color);
       ctx.lineWidth = (isSelected ? 3.5 : (isHover ? 3 : 2)) / state.scale;
       ctx.beginPath();
@@ -168,29 +171,8 @@
     ctx.save();
     setTransform(ctx);
 
-    if (state.drawStart) {
-      ctx.strokeStyle = state.currentColor;
-      ctx.lineWidth = 2 / state.scale;
-      ctx.setLineDash([6 / state.scale, 6 / state.scale]);
-      const worldPos = screenToWorld(state.mouse.x, state.mouse.y);
-      ctx.beginPath();
-      ctx.moveTo(state.drawStart.x, state.drawStart.y);
-      ctx.lineTo(worldPos.x, worldPos.y);
-      ctx.stroke();
-      ctx.setLineDash([]);
-
-      ctx.fillStyle = state.currentColor;
-      ctx.beginPath();
-      ctx.arc(state.drawStart.x, state.drawStart.y, 3 / state.scale, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    if (state.hoverPoint) {
-      ctx.strokeStyle = "#c5482a";
-      ctx.lineWidth = 2 / state.scale;
-      ctx.beginPath();
-      ctx.arc(state.hoverPoint.x, state.hoverPoint.y, 5 / state.scale, 0, Math.PI * 2);
-      ctx.stroke();
+    if (state.tool === "draw") {
+      lineTool.drawOverlay(ctx, state.scale, setTransform, state.currentColor);
     }
 
     ctx.restore();
@@ -210,25 +192,13 @@
 
   // Update the snapped hover point if the cursor is near a grid node.
   const updateHover = (x, y) => {
-    const world = screenToWorld(x, y);
-    const snapped = {
-      x: Math.round(world.x / gridSize) * gridSize,
-      y: Math.round(world.y / gridSize) * gridSize
-    };
-    const screen = worldToScreen(snapped.x, snapped.y);
-    const dist = Math.hypot(screen.x - x, screen.y - y);
-
     if (state.tool === "draw") {
-      if (dist <= hoverRadius) {
-        state.hoverPoint = snapped;
-      } else {
-        state.hoverPoint = null;
-      }
+      lineTool.updateHover(x, y);
       return;
     }
 
-    state.hoverPoint = null;
-    selection.updateHover(state.lines, world.x, world.y, state.scale);
+    const world = screenToWorld(x, y);
+    selectionTool.updateHover(state.lines, world.x, world.y, state.scale);
   };
 
   // Mouse move: handle panning or hover/preview.
@@ -236,8 +206,6 @@
     const rect = overlayCanvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    state.mouse = { x, y };
-
     if (state.isPanning) {
       const dx = x - state.panStart.x;
       const dy = y - state.panStart.y;
@@ -247,7 +215,11 @@
       return;
     }
 
-    updateHover(x, y);
+    if (state.tool === "draw") {
+      lineTool.handlePointerMove(x, y);
+    } else {
+      updateHover(x, y);
+    }
     if (state.tool === "select" || state.tool === "delete") {
       drawLines();
     }
@@ -259,8 +231,6 @@
     const rect = overlayCanvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    state.mouse = { x, y };
-
     if (e.button === 1) {
       state.isPanning = true;
       state.panStart = { x, y };
@@ -269,27 +239,26 @@
     }
 
     if (e.button === 0) {
+      if (state.tool === "draw") {
+        lineTool.handlePointerDown(x, y);
+        return;
+      }
+
       updateHover(x, y);
       if (state.tool === "select") {
-        selection.selectHover();
+        selectionTool.selectHover();
         updateProperties();
         drawAll();
         return;
       }
 
       if (state.tool === "delete") {
-        if (selection.hoverIndex !== null) {
-          state.lines.splice(selection.hoverIndex, 1);
+        if (selectionTool.deleteHover(state.lines)) {
           rebuildSelectionIndex();
-          selection.hoverIndex = null;
+          updateProperties();
           drawAll();
         }
         return;
-      }
-
-      if (state.hoverPoint) {
-        state.isDrawing = true;
-        state.drawStart = { ...state.hoverPoint };
       }
     }
   };
@@ -301,22 +270,17 @@
       return;
     }
 
-    if (e.button === 0 && state.isDrawing) {
-      if (
-        state.hoverPoint &&
-        (state.hoverPoint.x !== state.drawStart.x ||
-          state.hoverPoint.y !== state.drawStart.y)
-      ) {
+    if (e.button === 0 && state.tool === "draw") {
+      const segment = lineTool.handlePointerUp();
+      if (segment) {
         state.lines.push({
-          start: state.drawStart,
-          end: { ...state.hoverPoint },
+          start: segment.start,
+          end: segment.end,
           color: state.currentColor
         });
         rebuildSelectionIndex();
         drawLines();
       }
-      state.isDrawing = false;
-      state.drawStart = null;
       drawOverlay();
       updateHud();
     }
@@ -465,18 +429,18 @@
   });
 
   const rebuildSelectionIndex = () => {
-    selection.rebuild(state.lines);
+    selectionTool.rebuild(state.lines);
   };
 
   const updateProperties = () => {
-    if (selection.selectedIndex === null) {
+    if (selectionTool.selectedIndex === null) {
       propStatus.textContent = "None";
       propId.textContent = "-";
       propColor.textContent = "-";
       btnDeleteSelected.disabled = true;
       return;
     }
-    const line = state.lines[selection.selectedIndex];
+    const line = state.lines[selectionTool.selectedIndex];
     if (!line) {
       propStatus.textContent = "None";
       propId.textContent = "-";
@@ -485,7 +449,7 @@
       return;
     }
     propStatus.textContent = "Selected";
-    propId.textContent = String(selection.selectedIndex);
+    propId.textContent = String(selectionTool.selectedIndex);
     propColor.textContent = line.color;
     btnDeleteSelected.disabled = false;
   };
@@ -495,8 +459,8 @@
     btnLine.classList.toggle("active", tool === "draw");
     btnSelect.classList.toggle("active", tool === "select");
     btnDelete.classList.toggle("active", tool === "delete");
-    selection.hoverIndex = null;
-    state.hoverPoint = null;
+    selectionTool.clearHover();
+    lineTool.reset();
     drawAll();
   };
 
@@ -505,10 +469,10 @@
   btnLine.addEventListener("click", () => setTool("draw"));
 
   btnDeleteSelected.addEventListener("click", () => {
-    if (selection.selectedIndex === null) return;
-    state.lines.splice(selection.selectedIndex, 1);
+    if (selectionTool.selectedIndex === null) return;
+    state.lines.splice(selectionTool.selectedIndex, 1);
     rebuildSelectionIndex();
-    selection.clearSelection();
+    selectionTool.clearSelection();
     updateProperties();
     drawAll();
   });
@@ -523,8 +487,8 @@
   overlayCanvas.addEventListener("mousemove", onPointerMove);
   overlayCanvas.addEventListener("mouseup", onPointerUp);
   overlayCanvas.addEventListener("mouseleave", () => {
-    state.hoverPoint = null;
-    selection.hoverIndex = null;
+    lineTool.reset();
+    selectionTool.clearHover();
     drawLines();
     drawOverlay();
   });

@@ -142,3 +142,58 @@ class SelectionManager {
     this.selectedIndex = null;
   }
 }
+
+// Abstract base class for selection/delete behavior using the shared index.
+class SelectionToolBase {
+  constructor(options) {
+    this.manager = new SelectionManager(options);
+  }
+
+  rebuild(lines) {
+    this.manager.rebuild(lines);
+  }
+
+  updateHover(lines, worldX, worldY, scale) {
+    return this.manager.updateHover(lines, worldX, worldY, scale);
+  }
+
+  selectHover() {
+    return this.manager.selectHover();
+  }
+
+  clearHover() {
+    this.manager.hoverIndex = null;
+  }
+
+  clearSelection() {
+    this.manager.clearSelection();
+  }
+
+  // Remove the hovered line from the list if any.
+  deleteHover(lines) {
+    if (this.manager.hoverIndex === null) return false;
+    lines.splice(this.manager.hoverIndex, 1);
+    this.manager.hoverIndex = null;
+    return true;
+  }
+
+  get hoverIndex() {
+    return this.manager.hoverIndex;
+  }
+
+  get selectedIndex() {
+    return this.manager.selectedIndex;
+  }
+
+  set selectedIndex(value) {
+    this.manager.selectedIndex = value;
+  }
+
+  getSelectedLine(lines) {
+    if (this.manager.selectedIndex === null) return null;
+    return lines[this.manager.selectedIndex] || null;
+  }
+}
+
+// Concrete selection tool using the shared abstract behavior.
+class SelectionTool extends SelectionToolBase {}
