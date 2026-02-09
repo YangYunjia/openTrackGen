@@ -9,10 +9,15 @@
   const btnExport = document.getElementById("btnExport");
   const btnLine = document.getElementById("btnLine");
   const btnUndo = document.getElementById("btnUndo");
+  const btnSelect = document.getElementById("btnSelect");
   const btnDelete = document.getElementById("btnDelete");
   const btnColor = document.getElementById("btnColor");
   const colorPicker = document.getElementById("colorPicker");
   const colorSwatch = document.getElementById("colorSwatch");
+  const propStatus = document.getElementById("propStatus");
+  const propId = document.getElementById("propId");
+  const propColor = document.getElementById("propColor");
+  const btnDeleteSelected = document.getElementById("btnDeleteSelected");
 
   // Device pixel ratio helper for crisp rendering.
   const dpr = () => window.devicePixelRatio || 1;
@@ -30,16 +35,18 @@
     mouse: { x: 0, y: 0 },
     currentColor: "#000000",
     lines: [],
-    tool: "draw",
-    hoverLineIndex: null
+    tool: "draw"
   };
 
   // Grid size in world units and hover snap radius in screen pixels.
   const gridSize = 10;
   const hoverRadius = 7;
-  const deleteCellSize = 80;
-  const deleteHitRadius = 6;
-  const deleteIndex = new UniformGridIndex(deleteCellSize);
+  const selectCellSize = 80;
+  const selectHitRadius = 6;
+  const selection = new SelectionManager({
+    cellSize: selectCellSize,
+    hitRadius: selectHitRadius
+  });
 
   // Resize all canvases to match the CSS size and DPR.
   const resize = () => {
@@ -138,9 +145,12 @@
     ctx.lineCap = "round";
 
     state.lines.forEach((line) => {
-      const isHover = state.tool === "delete" && state.hoverLineIndex === line.__index;
-      ctx.strokeStyle = isHover ? "#c5482a" : line.color;
-      ctx.lineWidth = (isHover ? 3 : 2) / state.scale;
+      const isHover =
+        (state.tool === "select" || state.tool === "delete") &&
+        selection.hoverIndex === line.__index;
+      const isSelected = selection.selectedIndex === line.__index;
+      ctx.strokeStyle = isSelected ? "#8b2f1a" : (isHover ? "#c5482a" : line.color);
+      ctx.lineWidth = (isSelected ? 3.5 : (isHover ? 3 : 2)) / state.scale;
       ctx.beginPath();
       ctx.moveTo(line.start.x, line.start.y);
       ctx.lineTo(line.end.x, line.end.y);
@@ -214,19 +224,11 @@
       } else {
         state.hoverPoint = null;
       }
-      state.hoverLineIndex = null;
       return;
     }
 
     state.hoverPoint = null;
-    const candidates = deleteIndex.queryNearby(world.x, world.y);
-    state.hoverLineIndex = findClosestLine(
-      state.lines,
-      candidates,
-      world.x,
-      world.y,
-      deleteHitRadius / state.scale
-    );
+    selection.updateHover(state.lines, world.x, world.y, state.scale);
   };
 
   // Mouse move: handle panning or hover/preview.
@@ -246,7 +248,7 @@
     }
 
     updateHover(x, y);
-    if (state.tool === "delete") {
+    if (state.tool === "select" || state.tool === "delete") {
       drawLines();
     }
     drawOverlay();
@@ -268,11 +270,18 @@
 
     if (e.button === 0) {
       updateHover(x, y);
+      if (state.tool === "select") {
+        selection.selectHover();
+        updateProperties();
+        drawAll();
+        return;
+      }
+
       if (state.tool === "delete") {
-        if (state.hoverLineIndex !== null) {
-          state.lines.splice(state.hoverLineIndex, 1);
-          rebuildDeleteIndex();
-          state.hoverLineIndex = null;
+        if (selection.hoverIndex !== null) {
+          state.lines.splice(selection.hoverIndex, 1);
+          rebuildSelectionIndex();
+          selection.hoverIndex = null;
           drawAll();
         }
         return;
@@ -303,7 +312,7 @@
           end: { ...state.hoverPoint },
           color: state.currentColor
         });
-        rebuildDeleteIndex();
+        rebuildSelectionIndex();
         drawLines();
       }
       state.isDrawing = false;
@@ -430,7 +439,8 @@
               end: line.end,
               color: line.color || state.currentColor
             }));
-            rebuildDeleteIndex();
+            rebuildSelectionIndex();
+            updateProperties();
             drawAll();
           }
         } catch (err) {
@@ -448,29 +458,60 @@
 
   btnUndo.addEventListener("click", () => {
     state.lines.pop();
-    rebuildDeleteIndex();
+    rebuildSelectionIndex();
+    updateProperties();
     drawLines();
     updateHud();
   });
 
-  const rebuildDeleteIndex = () => {
-    state.lines.forEach((line, i) => {
-      line.__index = i;
-    });
-    deleteIndex.rebuild(state.lines);
+  const rebuildSelectionIndex = () => {
+    selection.rebuild(state.lines);
+  };
+
+  const updateProperties = () => {
+    if (selection.selectedIndex === null) {
+      propStatus.textContent = "None";
+      propId.textContent = "-";
+      propColor.textContent = "-";
+      btnDeleteSelected.disabled = true;
+      return;
+    }
+    const line = state.lines[selection.selectedIndex];
+    if (!line) {
+      propStatus.textContent = "None";
+      propId.textContent = "-";
+      propColor.textContent = "-";
+      btnDeleteSelected.disabled = true;
+      return;
+    }
+    propStatus.textContent = "Selected";
+    propId.textContent = String(selection.selectedIndex);
+    propColor.textContent = line.color;
+    btnDeleteSelected.disabled = false;
   };
 
   const setTool = (tool) => {
     state.tool = tool;
     btnLine.classList.toggle("active", tool === "draw");
+    btnSelect.classList.toggle("active", tool === "select");
     btnDelete.classList.toggle("active", tool === "delete");
-    state.hoverLineIndex = null;
+    selection.hoverIndex = null;
     state.hoverPoint = null;
     drawAll();
   };
 
+  btnSelect.addEventListener("click", () => setTool("select"));
   btnDelete.addEventListener("click", () => setTool("delete"));
   btnLine.addEventListener("click", () => setTool("draw"));
+
+  btnDeleteSelected.addEventListener("click", () => {
+    if (selection.selectedIndex === null) return;
+    state.lines.splice(selection.selectedIndex, 1);
+    rebuildSelectionIndex();
+    selection.clearSelection();
+    updateProperties();
+    drawAll();
+  });
 
   btnColor.addEventListener("click", () => colorPicker.click());
   colorPicker.addEventListener("input", (e) => {
@@ -483,7 +524,7 @@
   overlayCanvas.addEventListener("mouseup", onPointerUp);
   overlayCanvas.addEventListener("mouseleave", () => {
     state.hoverPoint = null;
-    state.hoverLineIndex = null;
+    selection.hoverIndex = null;
     drawLines();
     drawOverlay();
   });
@@ -497,7 +538,8 @@
     state.offsetX = 40;
     state.offsetY = 40;
     colorSwatch.style.background = state.currentColor;
-    rebuildDeleteIndex();
+    rebuildSelectionIndex();
+    updateProperties();
     resize();
   };
 

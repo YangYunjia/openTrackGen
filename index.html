@@ -14,6 +14,7 @@
       <button id="btnExport" class="tool-btn">Export PNG</button>
       <button id="btnLine" class="tool-btn active">Draw Line</button>
       <button id="btnUndo" class="tool-btn">Undo</button>
+      <button id="btnSelect" class="tool-btn">Select Line</button>
       <button id="btnDelete" class="tool-btn">Delete Line</button>
       <button id="btnColor" class="tool-btn color-btn">
         Current Color
@@ -27,6 +28,22 @@
       <canvas id="overlayCanvas"></canvas>
       <div class="hud" id="hud"></div>
     </main>
+    <aside class="property-panel">
+      <div class="property-title">Properties</div>
+      <div class="property-row">
+        <span class="property-label">Selection</span>
+        <span id="propStatus" class="property-value">None</span>
+      </div>
+      <div class="property-row">
+        <span class="property-label">Line ID</span>
+        <span id="propId" class="property-value">-</span>
+      </div>
+      <div class="property-row">
+        <span class="property-label">Color</span>
+        <span id="propColor" class="property-value">-</span>
+      </div>
+      <button id="btnDeleteSelected" class="tool-btn danger-btn" disabled>Delete Selected</button>
+    </aside>
   </div>
 
   <script src="delete.js"></script>

@@ -100,3 +100,45 @@ const findClosestLine = (lines, candidates, x, y, threshold) => {
   if (bestDist <= threshold) return bestIdx;
   return null;
 };
+
+// Selection manager keeps hit-testing and selection state separate from app logic.
+class SelectionManager {
+  constructor(options) {
+    this.cellSize = options.cellSize;
+    this.hitRadius = options.hitRadius;
+    this.index = new UniformGridIndex(this.cellSize);
+    this.hoverIndex = null;
+    this.selectedIndex = null;
+  }
+
+  rebuild(lines) {
+    lines.forEach((line, i) => {
+      line.__index = i;
+    });
+    this.index.rebuild(lines);
+    if (this.selectedIndex !== null && !lines[this.selectedIndex]) {
+      this.selectedIndex = null;
+    }
+  }
+
+  updateHover(lines, worldX, worldY, scale) {
+    const candidates = this.index.queryNearby(worldX, worldY);
+    this.hoverIndex = findClosestLine(
+      lines,
+      candidates,
+      worldX,
+      worldY,
+      this.hitRadius / scale
+    );
+    return this.hoverIndex;
+  }
+
+  selectHover() {
+    this.selectedIndex = this.hoverIndex;
+    return this.selectedIndex;
+  }
+
+  clearSelection() {
+    this.selectedIndex = null;
+  }
+}
