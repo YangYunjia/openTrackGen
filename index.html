@@ -16,6 +16,38 @@
       <button id="btnUndo" class="tool-btn">Undo</button>
       <button id="btnSelect" class="tool-btn">Select Line</button>
       <button id="btnDelete" class="tool-btn">Delete Line</button>
+      <div class="tool-group">
+        <div class="tool-label">Line Width</div>
+        <select id="lineWidthSelect" class="tool-select">
+          <option value="1">1x</option>
+          <option value="5">5x</option>
+          <option value="10">10x</option>
+          <option value="20">20x</option>
+        </select>
+      </div>
+      <div class="tool-group">
+        <div class="tool-label">Line Style</div>
+        <select id="lineStyleSelect" class="tool-select">
+          <option value="solid">Solid</option>
+          <option value="dashed">Dashed</option>
+          <option value="double">Double</option>
+        </select>
+      </div>
+      <div class="tool-group">
+        <div class="tool-label">Line Cap</div>
+        <select id="lineCapSelect" class="tool-select">
+          <option value="round">Round</option>
+          <option value="butt">Square</option>
+        </select>
+      </div>
+      <div class="tool-group">
+        <div class="tool-label">Line Align</div>
+        <select id="lineAlignSelect" class="tool-select">
+          <option value="center">Center</option>
+          <option value="left">Left</option>
+          <option value="right">Right</option>
+        </select>
+      </div>
       <button id="btnColor" class="tool-btn color-btn">
         Current Color
         <span id="colorSwatch" class="swatch" aria-hidden="true"></span>

@@ -6,6 +6,7 @@ class LineTool {
     this.hoverRadius = options.hoverRadius;
     this.screenToWorld = options.screenToWorld;
     this.worldToScreen = options.worldToScreen;
+    this.getStyle = options.getStyle;
     this.hoverPoint = null;
     this.isDrawing = false;
     this.drawStart = null;
@@ -73,15 +74,57 @@ class LineTool {
     setTransform(ctx);
 
     if (this.drawStart) {
+      const style = this.getStyle();
+      const strokeWidth = style.width || 1;
       ctx.strokeStyle = currentColor;
-      ctx.lineWidth = 2 / scale;
-      ctx.setLineDash([6 / scale, 6 / scale]);
+      ctx.lineWidth = strokeWidth;
+      ctx.lineCap = style.cap || "round";
+      if (style.kind === "dashed") {
+        ctx.setLineDash([6, 6]);
+      }
       const worldPos = this.screenToWorld(this.mouse.x, this.mouse.y);
+      const ax = this.drawStart.x;
+      const ay = this.drawStart.y;
+      const bx = worldPos.x;
+      const by = worldPos.y;
+      const dx = bx - ax;
+      const dy = by - ay;
+      const len = Math.hypot(dx, dy);
+      let sx = ax;
+      let sy = ay;
+      let ex = bx;
+      let ey = by;
+      if (len > 0 && style.align && style.align !== "center") {
+        const nx = -dy / len;
+        const ny = dx / len;
+        const offset = (strokeWidth / 2) * (style.align === "left" ? 1 : -1);
+        sx = ax + nx * offset;
+        sy = ay + ny * offset;
+        ex = bx + nx * offset;
+        ey = by + ny * offset;
+      }
       ctx.beginPath();
-      ctx.moveTo(this.drawStart.x, this.drawStart.y);
-      ctx.lineTo(worldPos.x, worldPos.y);
+      ctx.moveTo(sx, sy);
+      ctx.lineTo(ex, ey);
       ctx.stroke();
       ctx.setLineDash([]);
+
+      if (style.kind === "double") {
+        if (len > 0) {
+          const nx = -dy / len;
+          const ny = dx / len;
+          const offset = Math.max(1.5, strokeWidth * 0.6);
+          ctx.lineWidth = Math.max(1, strokeWidth * 0.55);
+          ctx.beginPath();
+          ctx.moveTo(sx + nx * offset, sy + ny * offset);
+          ctx.lineTo(ex + nx * offset, ey + ny * offset);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(sx - nx * offset, sy - ny * offset);
+          ctx.lineTo(ex - nx * offset, ey - ny * offset);
+          ctx.stroke();
+        }
+      }
 
       ctx.fillStyle = currentColor;
       ctx.beginPath();

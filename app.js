@@ -14,6 +14,10 @@
   const btnColor = document.getElementById("btnColor");
   const colorPicker = document.getElementById("colorPicker");
   const colorSwatch = document.getElementById("colorSwatch");
+  const lineWidthSelect = document.getElementById("lineWidthSelect");
+  const lineStyleSelect = document.getElementById("lineStyleSelect");
+  const lineCapSelect = document.getElementById("lineCapSelect");
+  const lineAlignSelect = document.getElementById("lineAlignSelect");
   const propStatus = document.getElementById("propStatus");
   const propId = document.getElementById("propId");
   const propColor = document.getElementById("propColor");
@@ -30,6 +34,10 @@
     panStart: { x: 0, y: 0 },
     offsetStart: { x: 0, y: 0 },
     currentColor: "#000000",
+    lineWidth: 1,
+    lineStyle: "solid",
+    lineCap: "round",
+    lineAlign: "center",
     lines: [],
     tool: "draw"
   };
@@ -75,7 +83,13 @@
     gridSize,
     hoverRadius,
     screenToWorld,
-    worldToScreen
+    worldToScreen,
+    getStyle: () => ({
+      width: state.lineWidth,
+      kind: state.lineStyle,
+      cap: state.lineCap,
+      align: state.lineAlign
+    })
   });
 
   // Apply current pan/zoom transform in device pixels.
@@ -152,12 +166,59 @@
         (state.tool === "select" || state.tool === "delete") &&
         selectionTool.hoverIndex === line.__index;
       const isSelected = selectionTool.selectedIndex === line.__index;
+      const strokeWidth = line.width || 1;
+      const align = line.align || "center";
+      const cap = line.cap || "round";
+      const ax = line.start.x;
+      const ay = line.start.y;
+      const bx = line.end.x;
+      const by = line.end.y;
+      const dx = bx - ax;
+      const dy = by - ay;
+      const len = Math.hypot(dx, dy);
+      let sx = ax;
+      let sy = ay;
+      let ex = bx;
+      let ey = by;
+      if (len > 0 && align !== "center") {
+        const nx = -dy / len;
+        const ny = dx / len;
+        const offset = (strokeWidth / 2) * (align === "left" ? 1 : -1);
+        sx = ax + nx * offset;
+        sy = ay + ny * offset;
+        ex = bx + nx * offset;
+        ey = by + ny * offset;
+      }
       ctx.strokeStyle = isSelected ? "#8b2f1a" : (isHover ? "#c5482a" : line.color);
-      ctx.lineWidth = (isSelected ? 3.5 : (isHover ? 3 : 2)) / state.scale;
+      ctx.lineWidth = (isSelected ? strokeWidth * 1.3 : (isHover ? strokeWidth * 1.15 : strokeWidth));
+      ctx.lineCap = cap;
+      if (line.style === "dashed") {
+        ctx.setLineDash([6, 6]);
+      } else {
+        ctx.setLineDash([]);
+      }
       ctx.beginPath();
-      ctx.moveTo(line.start.x, line.start.y);
-      ctx.lineTo(line.end.x, line.end.y);
+      ctx.moveTo(sx, sy);
+      ctx.lineTo(ex, ey);
       ctx.stroke();
+
+      if (line.style === "double") {
+        if (len > 0) {
+          const nx = -dy / len;
+          const ny = dx / len;
+          const offset = Math.max(1.5, strokeWidth * 0.6);
+          ctx.lineWidth = Math.max(1, strokeWidth * 0.55);
+          ctx.beginPath();
+          ctx.moveTo(sx + nx * offset, sy + ny * offset);
+          ctx.lineTo(ex + nx * offset, ey + ny * offset);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(sx - nx * offset, sy - ny * offset);
+          ctx.lineTo(ex - nx * offset, ey - ny * offset);
+          ctx.stroke();
+        }
+      }
+      ctx.setLineDash([]);
     });
 
     ctx.restore();
@@ -276,7 +337,11 @@
         state.lines.push({
           start: segment.start,
           end: segment.end,
-          color: state.currentColor
+          color: state.currentColor,
+          width: state.lineWidth,
+          style: state.lineStyle,
+          cap: state.lineCap,
+          align: state.lineAlign
         });
         rebuildSelectionIndex();
         drawLines();
@@ -354,12 +419,59 @@
     }
 
     state.lines.forEach((line) => {
+      const strokeWidth = line.width || 1;
+      const align = line.align || "center";
+      const cap = line.cap || "round";
+      const ax = line.start.x;
+      const ay = line.start.y;
+      const bx = line.end.x;
+      const by = line.end.y;
+      const dx = bx - ax;
+      const dy = by - ay;
+      const len = Math.hypot(dx, dy);
+      let sx = ax;
+      let sy = ay;
+      let ex = bx;
+      let ey = by;
+      if (len > 0 && align !== "center") {
+        const nx = -dy / len;
+        const ny = dx / len;
+        const offset = (strokeWidth / 2) * (align === "left" ? 1 : -1);
+        sx = ax + nx * offset;
+        sy = ay + ny * offset;
+        ex = bx + nx * offset;
+        ey = by + ny * offset;
+      }
       ctx.strokeStyle = line.color;
-      ctx.lineWidth = (2 / state.scale) * ratio;
+      ctx.lineWidth = strokeWidth * ratio;
+      ctx.lineCap = cap;
+      if (line.style === "dashed") {
+        ctx.setLineDash([6 * ratio, 6 * ratio]);
+      } else {
+        ctx.setLineDash([]);
+      }
       ctx.beginPath();
-      ctx.moveTo(line.start.x, line.start.y);
-      ctx.lineTo(line.end.x, line.end.y);
+      ctx.moveTo(sx, sy);
+      ctx.lineTo(ex, ey);
       ctx.stroke();
+
+      if (line.style === "double") {
+        if (len > 0) {
+          const nx = -dy / len;
+          const ny = dx / len;
+          const offset = Math.max(1.5, strokeWidth * 0.6);
+          ctx.lineWidth = Math.max(1, strokeWidth * 0.55) * ratio;
+          ctx.beginPath();
+          ctx.moveTo(sx + nx * offset, sy + ny * offset);
+          ctx.lineTo(ex + nx * offset, ey + ny * offset);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(sx - nx * offset, sy - ny * offset);
+          ctx.lineTo(ex - nx * offset, ey - ny * offset);
+          ctx.stroke();
+        }
+      }
+      ctx.setLineDash([]);
     });
 
     ctx.restore();
@@ -401,7 +513,11 @@
             state.lines = data.lines.map((line) => ({
               start: line.start,
               end: line.end,
-              color: line.color || state.currentColor
+              color: line.color || state.currentColor,
+              width: line.width || 1,
+              style: line.style || "solid",
+              cap: line.cap || "round",
+              align: line.align || "center"
             }));
             rebuildSelectionIndex();
             updateProperties();
@@ -450,7 +566,7 @@
     }
     propStatus.textContent = "Selected";
     propId.textContent = String(selectionTool.selectedIndex);
-    propColor.textContent = line.color;
+    propColor.textContent = `${line.color} | ${line.style || "solid"} | ${line.width || 1}x | ${line.cap || "round"} | ${line.align || "center"}`;
     btnDeleteSelected.disabled = false;
   };
 
@@ -483,6 +599,22 @@
     colorSwatch.style.background = state.currentColor;
   });
 
+  lineWidthSelect.addEventListener("change", (e) => {
+    state.lineWidth = Number(e.target.value);
+  });
+
+  lineStyleSelect.addEventListener("change", (e) => {
+    state.lineStyle = e.target.value;
+  });
+
+  lineCapSelect.addEventListener("change", (e) => {
+    state.lineCap = e.target.value;
+  });
+
+  lineAlignSelect.addEventListener("change", (e) => {
+    state.lineAlign = e.target.value;
+  });
+
   overlayCanvas.addEventListener("mousedown", onPointerDown);
   overlayCanvas.addEventListener("mousemove", onPointerMove);
   overlayCanvas.addEventListener("mouseup", onPointerUp);
@@ -502,6 +634,10 @@
     state.offsetX = 40;
     state.offsetY = 40;
     colorSwatch.style.background = state.currentColor;
+    lineWidthSelect.value = String(state.lineWidth);
+    lineStyleSelect.value = state.lineStyle;
+    lineCapSelect.value = state.lineCap;
+    lineAlignSelect.value = state.lineAlign;
     rebuildSelectionIndex();
     updateProperties();
     resize();
