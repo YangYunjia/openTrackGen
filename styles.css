@@ -1,0 +1,112 @@
+/* Base theme tokens */
+:root {
+  --toolbar-w: 140px;
+  --bg: #f6f0e6;
+  --panel: #efe6d8;
+  --ink: #2b2b2b;
+  --accent: #c5482a;
+  --grid: rgba(0, 0, 0, 0.12);
+  --grid-strong: rgba(0, 0, 0, 0.2);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: "Avenir Next", "Futura", "Noto Sans", sans-serif;
+  color: var(--ink);
+  background: radial-gradient(circle at 20% 10%, #fff6ea, #f3e5d0 40%, #e7d4b9 80%);
+  height: 100vh;
+}
+
+.app {
+  display: grid;
+  grid-template-columns: var(--toolbar-w) 1fr;
+  height: 100vh;
+}
+
+.toolbar {
+  padding: 16px 12px;
+  background: linear-gradient(180deg, #f0e3d1, #e5d2b7);
+  border-right: 1px solid rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tool-btn {
+  font-size: 14px;
+  padding: 10px 8px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  background: #fff7ec;
+  color: var(--ink);
+  cursor: pointer;
+  border-radius: 8px;
+  text-align: left;
+  position: relative;
+  transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease;
+}
+
+.tool-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.08);
+}
+
+.tool-btn.active {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.color-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.swatch {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  background: #000;
+}
+
+.color-picker {
+  position: absolute;
+  left: -9999px;
+}
+
+.canvas-wrap {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  height: 100%;
+}
+
+canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.hud {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  background: rgba(255, 255, 255, 0.7);
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+@media (max-width: 720px) {
+  :root { --toolbar-w: 110px; }
+  .tool-btn { font-size: 12px; }
+}

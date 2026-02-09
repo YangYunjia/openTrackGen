@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Drawing Board</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app">
+    <aside class="toolbar">
+      <button id="btnOpen" class="tool-btn">Open</button>
+      <button id="btnSave" class="tool-btn">Save</button>
+      <button id="btnExport" class="tool-btn">Export PNG</button>
+      <button id="btnLine" class="tool-btn active">Draw Line</button>
+      <button id="btnUndo" class="tool-btn">Undo</button>
+      <button id="btnDelete" class="tool-btn">Delete Line</button>
+      <button id="btnColor" class="tool-btn color-btn">
+        Current Color
+        <span id="colorSwatch" class="swatch" aria-hidden="true"></span>
+      </button>
+      <input id="colorPicker" class="color-picker" type="color" value="#000000" />
+    </aside>
+    <main class="canvas-wrap">
+      <canvas id="gridCanvas"></canvas>
+      <canvas id="drawCanvas"></canvas>
+      <canvas id="overlayCanvas"></canvas>
+      <div class="hud" id="hud"></div>
+    </main>
+  </div>
+
+  <script src="delete.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
