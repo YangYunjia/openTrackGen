@@ -15,16 +15,7 @@
   const btnColor = document.getElementById("btnColor");
   const colorPicker = document.getElementById("colorPicker");
   const colorSwatch = document.getElementById("colorSwatch");
-  const lineWidthSelect = document.getElementById("lineWidthSelect");
-  const lineStyleSelect = document.getElementById("lineStyleSelect");
-  const lineCapSelect = document.getElementById("lineCapSelect");
-  const lineAlignSelect = document.getElementById("lineAlignSelect");
-  const propStatus = document.getElementById("propStatus");
-  const propType = document.getElementById("propType");
-  const propId = document.getElementById("propId");
-  const propColor = document.getElementById("propColor");
-  const propText = document.getElementById("propText");
-  const btnDeleteSelected = document.getElementById("btnDeleteSelected");
+  let propertiesPanel = null;
 
   // Device pixel ratio helper for crisp rendering.
   const dpr = () => window.devicePixelRatio || 1;
@@ -41,6 +32,9 @@
     lineStyle: "solid",
     lineCap: "round",
     lineAlign: "center",
+    lineOffsetStartX: 0,
+    lineOffsetEndX: 0,
+    textOffsetX: 0,
     lines: [],
     texts: [],
     tool: "draw"
@@ -97,6 +91,7 @@
       align: state.lineAlign
     })
   });
+  const lineController = new LineController({ state, lineTool });
 
   const textFontFamily = "\"Avenir Next\", \"Futura\", \"Noto Sans\", sans-serif";
   const defaultTextSize = 12;
@@ -135,17 +130,21 @@
     if (!item) return null;
     if (item.kind === "line") {
       const line = item.data;
+      const ax = line.start.x + (line.offsetStartX || 0);
+      const ay = line.start.y;
+      const bx = line.end.x + (line.offsetEndX || 0);
+      const by = line.end.y;
       const half = (line.width || 1) / 2;
-      const minX = Math.min(line.start.x, line.end.x) - half;
-      const maxX = Math.max(line.start.x, line.end.x) + half;
-      const minY = Math.min(line.start.y, line.end.y) - half;
-      const maxY = Math.max(line.start.y, line.end.y) + half;
+      const minX = Math.min(ax, bx) - half;
+      const maxX = Math.max(ax, bx) + half;
+      const minY = Math.min(ay, by) - half;
+      const maxY = Math.max(ay, by) + half;
       return { minX, minY, maxX, maxY };
     }
     if (item.kind === "text") {
       const text = item.data;
       const box = text.__box || measureTextBox(text.text, text.fontSize);
-      const minX = text.x;
+      const minX = text.x + (text.offsetX || 0);
       const minY = text.y;
       return { minX, minY, maxX: minX + box.width, maxY: minY + box.height };
     }
@@ -164,16 +163,24 @@
       return distanceToSegment(
         x,
         y,
-        line.start.x,
+        line.start.x + (line.offsetStartX || 0),
         line.start.y,
-        line.end.x,
+        line.end.x + (line.offsetEndX || 0),
         line.end.y
       );
     }
     if (item.kind === "text") {
       const text = item.data;
       const box = text.__box || measureTextBox(text.text, text.fontSize);
-      return distanceToRect(x, y, text.x, text.y, text.x + box.width, text.y + box.height);
+      const ox = text.offsetX || 0;
+      return distanceToRect(
+        x,
+        y,
+        text.x + ox,
+        text.y,
+        text.x + ox + box.width,
+        text.y + box.height
+      );
     }
     return Infinity;
   };
@@ -242,88 +249,20 @@
     ctx.restore();
   };
 
-  // Draw committed line segments.
+  // Draw committed line segments and texts.
   const drawLines = () => {
     const ctx = drawCanvas.getContext("2d");
     clearCanvas(ctx, drawCanvas);
+    lineController.drawLines(ctx, selectionTool, setTransform);
+
     ctx.save();
     setTransform(ctx);
-    ctx.lineCap = "round";
-
-    const hoveredItem = selectionTool.getHoveredItem();
-    const selectedItem = selectionTool.getSelectedItem();
-
-    state.lines.forEach((line, index) => {
-      const isHover =
-        (state.tool === "select" || state.tool === "delete") &&
-        hoveredItem &&
-        hoveredItem.kind === "line" &&
-        hoveredItem.index === index;
-      const isSelected =
-        selectedItem &&
-        selectedItem.kind === "line" &&
-        selectedItem.index === index;
-      const strokeWidth = line.width || 1;
-      const align = line.align || "center";
-      const cap = line.cap || "round";
-      const ax = line.start.x;
-      const ay = line.start.y;
-      const bx = line.end.x;
-      const by = line.end.y;
-      const dx = bx - ax;
-      const dy = by - ay;
-      const len = Math.hypot(dx, dy);
-      let sx = ax;
-      let sy = ay;
-      let ex = bx;
-      let ey = by;
-      if (len > 0 && align !== "center") {
-        const nx = -dy / len;
-        const ny = dx / len;
-        const offset = (strokeWidth / 2) * (align === "left" ? 1 : -1);
-        sx = ax + nx * offset;
-        sy = ay + ny * offset;
-        ex = bx + nx * offset;
-        ey = by + ny * offset;
-      }
-      ctx.strokeStyle = isSelected ? "#8b2f1a" : (isHover ? "#c5482a" : line.color);
-      ctx.lineWidth = (isSelected ? strokeWidth * 1.3 : (isHover ? strokeWidth * 1.15 : strokeWidth));
-      ctx.lineCap = cap;
-      if (line.style === "dashed") {
-        ctx.setLineDash([6, 6]);
-      } else {
-        ctx.setLineDash([]);
-      }
-      ctx.beginPath();
-      ctx.moveTo(sx, sy);
-      ctx.lineTo(ex, ey);
-      ctx.stroke();
-
-      if (line.style === "double") {
-        if (len > 0) {
-          const nx = -dy / len;
-          const ny = dx / len;
-          const offset = Math.max(1.5, strokeWidth * 0.6);
-          ctx.lineWidth = Math.max(1, strokeWidth * 0.55);
-          ctx.beginPath();
-          ctx.moveTo(sx + nx * offset, sy + ny * offset);
-          ctx.lineTo(ex + nx * offset, ey + ny * offset);
-          ctx.stroke();
-          ctx.beginPath();
-          ctx.moveTo(sx - nx * offset, sy - ny * offset);
-          ctx.lineTo(ex - nx * offset, ey - ny * offset);
-          ctx.stroke();
-        }
-      }
-      ctx.setLineDash([]);
-    });
-
     state.texts.forEach((text) => {
       ctx.fillStyle = text.color;
       ctx.font = `${text.fontSize}px ${textFontFamily}`;
       ctx.textBaseline = "top";
       ctx.textAlign = "left";
-      ctx.fillText(text.text, text.x, text.y);
+      ctx.fillText(text.text, text.x + (text.offsetX || 0), text.y);
     });
 
     const hovered = selectionTool.getHoveredItem();
@@ -334,7 +273,12 @@
       ctx.strokeStyle = color;
       ctx.lineWidth = 1 / state.scale;
       ctx.setLineDash([]);
-      ctx.strokeRect(item.data.x, item.data.y, box.width, box.height);
+      ctx.strokeRect(
+        item.data.x + (item.data.offsetX || 0),
+        item.data.y,
+        box.width,
+        box.height
+      );
     };
     highlightText(hovered, "#c5482a");
     highlightText(selected, "#8b2f1a");
@@ -351,7 +295,7 @@
     setTransform(ctx);
 
     if (state.tool === "draw") {
-      lineTool.drawOverlay(ctx, state.scale, setTransform, state.currentColor);
+      lineController.drawOverlay(ctx, state.scale, setTransform);
     }
     if (state.tool === "text" && textHoverPoint) {
       ctx.strokeStyle = "#c5482a";
@@ -379,7 +323,7 @@
   // Update the snapped hover point if the cursor is near a grid node.
   const updateHover = (x, y) => {
     if (state.tool === "draw") {
-      lineTool.updateHover(x, y);
+      lineController.updateHover(x, y);
       return;
     }
 
@@ -412,7 +356,7 @@
     }
 
     if (state.tool === "draw") {
-      lineTool.handlePointerMove(x, y);
+      lineController.handlePointerMove(x, y);
     } else {
       updateHover(x, y);
     }
@@ -436,7 +380,7 @@
 
     if (e.button === 0) {
       if (state.tool === "draw") {
-        lineTool.handlePointerDown(x, y);
+        lineController.handlePointerDown(x, y);
         return;
       }
 
@@ -451,7 +395,8 @@
           y: snapped.y,
           text: "Text",
           fontSize: defaultTextSize,
-          color: state.currentColor
+          color: state.currentColor,
+          offsetX: state.textOffsetX || 0
         });
         rebuildSelectionIndex();
         drawAll();
@@ -461,7 +406,7 @@
       updateHover(x, y);
       if (state.tool === "select") {
         selectionTool.selectHover();
-        updateProperties();
+        propertiesPanel.update();
         drawAll();
         return;
       }
@@ -476,7 +421,7 @@
             state.texts.splice(hovered.index, 1);
           }
           rebuildSelectionIndex();
-          updateProperties();
+          propertiesPanel.update();
           drawAll();
         }
         return;
@@ -492,17 +437,8 @@
     }
 
     if (e.button === 0 && state.tool === "draw") {
-      const segment = lineTool.handlePointerUp();
-      if (segment) {
-        state.lines.push({
-          start: segment.start,
-          end: segment.end,
-          color: state.currentColor,
-          width: state.lineWidth,
-          style: state.lineStyle,
-          cap: state.lineCap,
-          align: state.lineAlign
-        });
+      const added = lineController.handlePointerUp();
+      if (added) {
         rebuildSelectionIndex();
         drawLines();
       }
@@ -578,68 +514,14 @@
       ctx.stroke();
     }
 
-    state.lines.forEach((line) => {
-      const strokeWidth = line.width || 1;
-      const align = line.align || "center";
-      const cap = line.cap || "round";
-      const ax = line.start.x;
-      const ay = line.start.y;
-      const bx = line.end.x;
-      const by = line.end.y;
-      const dx = bx - ax;
-      const dy = by - ay;
-      const len = Math.hypot(dx, dy);
-      let sx = ax;
-      let sy = ay;
-      let ex = bx;
-      let ey = by;
-      if (len > 0 && align !== "center") {
-        const nx = -dy / len;
-        const ny = dx / len;
-        const offset = (strokeWidth / 2) * (align === "left" ? 1 : -1);
-        sx = ax + nx * offset;
-        sy = ay + ny * offset;
-        ex = bx + nx * offset;
-        ey = by + ny * offset;
-      }
-      ctx.strokeStyle = line.color;
-      ctx.lineWidth = strokeWidth * ratio;
-      ctx.lineCap = cap;
-      if (line.style === "dashed") {
-        ctx.setLineDash([6 * ratio, 6 * ratio]);
-      } else {
-        ctx.setLineDash([]);
-      }
-      ctx.beginPath();
-      ctx.moveTo(sx, sy);
-      ctx.lineTo(ex, ey);
-      ctx.stroke();
-
-      if (line.style === "double") {
-        if (len > 0) {
-          const nx = -dy / len;
-          const ny = dx / len;
-          const offset = Math.max(1.5, strokeWidth * 0.6);
-          ctx.lineWidth = Math.max(1, strokeWidth * 0.55) * ratio;
-          ctx.beginPath();
-          ctx.moveTo(sx + nx * offset, sy + ny * offset);
-          ctx.lineTo(ex + nx * offset, ey + ny * offset);
-          ctx.stroke();
-          ctx.beginPath();
-          ctx.moveTo(sx - nx * offset, sy - ny * offset);
-          ctx.lineTo(ex - nx * offset, ey - ny * offset);
-          ctx.stroke();
-        }
-      }
-      ctx.setLineDash([]);
-    });
+    lineController.drawLinesForExport(ctx, ratio);
 
     state.texts.forEach((text) => {
       ctx.fillStyle = text.color;
       ctx.font = `${text.fontSize}px ${textFontFamily}`;
       ctx.textBaseline = "top";
       ctx.textAlign = "left";
-      ctx.fillText(text.text, text.x, text.y);
+      ctx.fillText(text.text, text.x + (text.offsetX || 0), text.y);
     });
 
     ctx.restore();
@@ -687,17 +569,20 @@
             width: line.width || 1,
             style: line.style || "solid",
             cap: line.cap || "round",
-            align: line.align || "center"
+            align: line.align || "center",
+            offsetStartX: line.offsetStartX || 0,
+            offsetEndX: line.offsetEndX || 0
           }));
           state.texts = texts.map((text) => ({
             x: text.x,
             y: text.y,
             text: text.text || "Text",
             fontSize: text.fontSize || defaultTextSize,
-            color: text.color || state.currentColor
+            color: text.color || state.currentColor,
+            offsetX: text.offsetX || 0
           }));
           rebuildSelectionIndex();
-          updateProperties();
+          propertiesPanel.update();
           drawAll();
         } catch (err) {
           console.error("Failed to read file", err);
@@ -715,7 +600,7 @@
   btnUndo.addEventListener("click", () => {
     state.lines.pop();
     rebuildSelectionIndex();
-    updateProperties();
+    propertiesPanel.update();
     drawLines();
     updateHud();
   });
@@ -723,45 +608,6 @@
   const rebuildSelectionIndex = () => {
     const items = buildSelectionItems();
     selectionTool.rebuild(items);
-  };
-
-  const updateProperties = () => {
-    if (selectionTool.selectedIndex === null) {
-      propStatus.textContent = "None";
-      propType.textContent = "-";
-      propId.textContent = "-";
-      propColor.textContent = "-";
-      propText.value = "";
-      propText.disabled = true;
-      btnDeleteSelected.disabled = true;
-      return;
-    }
-    const item = selectionTool.getSelectedItem();
-    if (!item) {
-      propStatus.textContent = "None";
-      propType.textContent = "-";
-      propId.textContent = "-";
-      propColor.textContent = "-";
-      propText.value = "";
-      propText.disabled = true;
-      btnDeleteSelected.disabled = true;
-      return;
-    }
-    propStatus.textContent = "Selected";
-    propType.textContent = item.kind;
-    propId.textContent = String(item.index);
-    if (item.kind === "line") {
-      const line = item.data;
-      propColor.textContent = `${line.color} | ${line.style || "solid"} | ${line.width || 1}x | ${line.cap || "round"} | ${line.align || "center"}`;
-      propText.value = "";
-      propText.disabled = true;
-    } else {
-      const text = item.data;
-      propColor.textContent = text.color;
-      propText.value = text.text;
-      propText.disabled = false;
-    }
-    btnDeleteSelected.disabled = false;
   };
 
   const setTool = (tool) => {
@@ -773,11 +619,12 @@
     selectionTool.clearHover();
     if (tool !== "select") {
       selectionTool.clearSelection();
-      updateProperties();
+      propertiesPanel.update();
     }
-    lineTool.reset();
+    lineController.reset();
     textHoverPoint = null;
     drawAll();
+    propertiesPanel.updateLineControlsForContext();
   };
 
   btnSelect.addEventListener("click", () => setTool("select"));
@@ -785,56 +632,17 @@
   btnLine.addEventListener("click", () => setTool("draw"));
   btnText.addEventListener("click", () => setTool("text"));
 
-  btnDeleteSelected.addEventListener("click", () => {
-    const item = selectionTool.getSelectedItem();
-    if (!item) return;
-    if (item.kind === "line") {
-      state.lines.splice(item.index, 1);
-    }
-    if (item.kind === "text") {
-      state.texts.splice(item.index, 1);
-    }
-    rebuildSelectionIndex();
-    selectionTool.clearSelection();
-    updateProperties();
-    drawAll();
-  });
-
   btnColor.addEventListener("click", () => colorPicker.click());
   colorPicker.addEventListener("input", (e) => {
     state.currentColor = e.target.value;
     colorSwatch.style.background = state.currentColor;
   });
 
-  propText.addEventListener("input", (e) => {
-    const item = selectionTool.getSelectedItem();
-    if (!item || item.kind !== "text") return;
-    state.texts[item.index].text = e.target.value;
-    rebuildSelectionIndex();
-    drawAll();
-  });
-
-  lineWidthSelect.addEventListener("change", (e) => {
-    state.lineWidth = Number(e.target.value);
-  });
-
-  lineStyleSelect.addEventListener("change", (e) => {
-    state.lineStyle = e.target.value;
-  });
-
-  lineCapSelect.addEventListener("change", (e) => {
-    state.lineCap = e.target.value;
-  });
-
-  lineAlignSelect.addEventListener("change", (e) => {
-    state.lineAlign = e.target.value;
-  });
-
   overlayCanvas.addEventListener("mousedown", onPointerDown);
   overlayCanvas.addEventListener("mousemove", onPointerMove);
   overlayCanvas.addEventListener("mouseup", onPointerUp);
   overlayCanvas.addEventListener("mouseleave", () => {
-    lineTool.reset();
+    lineController.reset();
     selectionTool.clearHover();
     textHoverPoint = null;
     drawLines();
@@ -850,12 +658,15 @@
     state.offsetX = 40;
     state.offsetY = 40;
     colorSwatch.style.background = state.currentColor;
-    lineWidthSelect.value = String(state.lineWidth);
-    lineStyleSelect.value = state.lineStyle;
-    lineCapSelect.value = state.lineCap;
-    lineAlignSelect.value = state.lineAlign;
     rebuildSelectionIndex();
-    updateProperties();
+    propertiesPanel = new PropertiesPanel({
+      state,
+      selectionTool,
+      rebuildSelectionIndex,
+      drawLines,
+      drawAll
+    });
+    propertiesPanel.init();
     resize();
   };
 

@@ -17,38 +17,6 @@
       <button id="btnSelect" class="tool-btn">Select Line</button>
       <button id="btnDelete" class="tool-btn">Delete Line</button>
       <button id="btnText" class="tool-btn">Text Box</button>
-      <div class="tool-group">
-        <div class="tool-label">Line Width</div>
-        <select id="lineWidthSelect" class="tool-select">
-          <option value="1">1x</option>
-          <option value="5">5x</option>
-          <option value="10">10x</option>
-          <option value="20">20x</option>
-        </select>
-      </div>
-      <div class="tool-group">
-        <div class="tool-label">Line Style</div>
-        <select id="lineStyleSelect" class="tool-select">
-          <option value="solid">Solid</option>
-          <option value="dashed">Dashed</option>
-          <option value="double">Double</option>
-        </select>
-      </div>
-      <div class="tool-group">
-        <div class="tool-label">Line Cap</div>
-        <select id="lineCapSelect" class="tool-select">
-          <option value="round">Round</option>
-          <option value="butt">Square</option>
-        </select>
-      </div>
-      <div class="tool-group">
-        <div class="tool-label">Line Align</div>
-        <select id="lineAlignSelect" class="tool-select">
-          <option value="center">Center</option>
-          <option value="left">Left</option>
-          <option value="right">Right</option>
-        </select>
-      </div>
       <button id="btnColor" class="tool-btn color-btn">
         Current Color
         <span id="colorSwatch" class="swatch" aria-hidden="true"></span>
@@ -75,9 +43,54 @@
         <span class="property-label">Line ID</span>
         <span id="propId" class="property-value">-</span>
       </div>
-      <div class="property-row">
-        <span class="property-label">Color</span>
-        <span id="propColor" class="property-value">-</span>
+      <div class="property-row property-col">
+        <span class="property-label">Line Width</span>
+        <select id="lineWidthSelect" class="tool-select">
+          <option value="1">1x</option>
+          <option value="2">2x</option>
+          <option value="3">3x</option>
+          <option value="5">5x</option>
+          <option value="10">10x</option>
+          <option value="20">20x</option>
+        </select>
+      </div>
+      <div class="property-row property-col">
+        <span class="property-label">Line Style</span>
+        <select id="lineStyleSelect" class="tool-select">
+          <option value="solid">Solid</option>
+          <option value="dashed">Dashed</option>
+          <option value="double">Double</option>
+        </select>
+      </div>
+      <div class="property-row property-col">
+        <span class="property-label">Line Cap</span>
+        <select id="lineCapSelect" class="tool-select">
+          <option value="round">Round</option>
+          <option value="butt">Square</option>
+        </select>
+      </div>
+      <div class="property-row property-col">
+        <span class="property-label">Line Align</span>
+        <select id="lineAlignSelect" class="tool-select">
+          <option value="center">Center</option>
+          <option value="left">Left</option>
+          <option value="right">Right</option>
+        </select>
+      </div>
+      <div class="property-row property-col">
+        <span class="property-label">Line Offset Start X</span>
+        <input id="lineStartOffset" class="tool-range" type="range" min="-5" max="5" step="1" value="0" />
+        <span id="lineStartOffsetValue" class="property-value">0</span>
+      </div>
+      <div class="property-row property-col">
+        <span class="property-label">Line Offset End X</span>
+        <input id="lineEndOffset" class="tool-range" type="range" min="-5" max="5" step="1" value="0" />
+        <span id="lineEndOffsetValue" class="property-value">0</span>
+      </div>
+      <div class="property-row property-col">
+        <span class="property-label">Text Offset X</span>
+        <input id="textOffset" class="tool-range" type="range" min="-5" max="5" step="1" value="0" />
+        <span id="textOffsetValue" class="property-value">0</span>
       </div>
       <div class="property-row property-col">
         <span class="property-label">Text</span>
@@ -88,7 +101,9 @@
   </div>
 
   <script src="line_tool.js"></script>
+  <script src="line_logic.js"></script>
   <script src="delete.js"></script>
+  <script src="properties.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

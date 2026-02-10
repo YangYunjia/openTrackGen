@@ -69,9 +69,11 @@ class LineTool {
   }
 
   // Draw preview line and hover point into the overlay canvas.
-  drawOverlay(ctx, scale, setTransform, currentColor) {
+  drawOverlay(ctx, scale, setTransform, currentColor, offsetStartX, offsetEndX) {
     ctx.save();
     setTransform(ctx);
+    const startOffsetX = offsetStartX || 0;
+    const endOffsetX = offsetEndX || 0;
 
     if (this.drawStart) {
       const style = this.getStyle();
@@ -83,9 +85,9 @@ class LineTool {
         ctx.setLineDash([6, 6]);
       }
       const worldPos = this.screenToWorld(this.mouse.x, this.mouse.y);
-      const ax = this.drawStart.x;
+      const ax = this.drawStart.x + startOffsetX;
       const ay = this.drawStart.y;
-      const bx = worldPos.x;
+      const bx = worldPos.x + endOffsetX;
       const by = worldPos.y;
       const dx = bx - ax;
       const dy = by - ay;
@@ -128,7 +130,7 @@ class LineTool {
 
       ctx.fillStyle = currentColor;
       ctx.beginPath();
-      ctx.arc(this.drawStart.x, this.drawStart.y, 3 / scale, 0, Math.PI * 2);
+      ctx.arc(ax, ay, 3 / scale, 0, Math.PI * 2);
       ctx.fill();
     }
 
@@ -136,7 +138,7 @@ class LineTool {
       ctx.strokeStyle = "#c5482a";
       ctx.lineWidth = 2 / scale;
       ctx.beginPath();
-      ctx.arc(this.hoverPoint.x, this.hoverPoint.y, 5 / scale, 0, Math.PI * 2);
+      ctx.arc(this.hoverPoint.x + startOffsetX, this.hoverPoint.y, 5 / scale, 0, Math.PI * 2);
       ctx.stroke();
     }
 
