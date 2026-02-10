@@ -12,9 +12,7 @@
   const btnSelect = document.getElementById("btnSelect");
   const btnDelete = document.getElementById("btnDelete");
   const btnText = document.getElementById("btnText");
-  const btnColor = document.getElementById("btnColor");
-  const colorPicker = document.getElementById("colorPicker");
-  const colorSwatch = document.getElementById("colorSwatch");
+  let colorPanel = null;
   let propertiesPanel = null;
 
   // Device pixel ratio helper for crisp rendering.
@@ -632,12 +630,6 @@
   btnLine.addEventListener("click", () => setTool("draw"));
   btnText.addEventListener("click", () => setTool("text"));
 
-  btnColor.addEventListener("click", () => colorPicker.click());
-  colorPicker.addEventListener("input", (e) => {
-    state.currentColor = e.target.value;
-    colorSwatch.style.background = state.currentColor;
-  });
-
   overlayCanvas.addEventListener("mousedown", onPointerDown);
   overlayCanvas.addEventListener("mousemove", onPointerMove);
   overlayCanvas.addEventListener("mouseup", onPointerUp);
@@ -657,14 +649,19 @@
     state.scale = 1;
     state.offsetX = 40;
     state.offsetY = 40;
-    colorSwatch.style.background = state.currentColor;
     rebuildSelectionIndex();
+    colorPanel = new ColorPanel({
+      state,
+      selectionTool,
+      drawLines
+    });
     propertiesPanel = new PropertiesPanel({
       state,
       selectionTool,
       rebuildSelectionIndex,
       drawLines,
-      drawAll
+      drawAll,
+      colorPanel
     });
     propertiesPanel.init();
     resize();

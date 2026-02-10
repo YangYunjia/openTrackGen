@@ -7,6 +7,7 @@ class PropertiesPanel {
     this.rebuildSelectionIndex = options.rebuildSelectionIndex;
     this.drawLines = options.drawLines;
     this.drawAll = options.drawAll;
+    this.colorPanel = options.colorPanel;
 
     this.lineWidthSelect = document.getElementById("lineWidthSelect");
     this.lineStyleSelect = document.getElementById("lineStyleSelect");
@@ -151,6 +152,7 @@ class PropertiesPanel {
       }
       this.state.textOffsetX = value;
     });
+
   }
 
   setOffsetControl(input, valueEl, value) {
@@ -177,6 +179,7 @@ class PropertiesPanel {
     this.lineStartOffset.disabled = !canEditLine;
     this.lineEndOffset.disabled = !canEditLine;
     this.textOffset.disabled = !canEditText;
+    this.colorPanel.setEnabled(canEditLine || canEditText);
 
     if (isDraw) {
       this.lineWidthSelect.value = String(this.state.lineWidth);
@@ -200,6 +203,7 @@ class PropertiesPanel {
       this.propText.value = "";
       this.propText.disabled = true;
       this.btnDeleteSelected.disabled = true;
+      this.colorPanel.setSwatch(this.state.currentColor);
       this.updateLineControlsForContext();
       return;
     }
@@ -211,6 +215,7 @@ class PropertiesPanel {
       this.propText.value = "";
       this.propText.disabled = true;
       this.btnDeleteSelected.disabled = true;
+      this.colorPanel.setSwatch(this.state.currentColor);
       this.updateLineControlsForContext();
       return;
     }
@@ -225,6 +230,7 @@ class PropertiesPanel {
       this.lineAlignSelect.value = line.align || "center";
       this.setOffsetControl(this.lineStartOffset, this.lineStartOffsetValue, line.offsetStartX || 0);
       this.setOffsetControl(this.lineEndOffset, this.lineEndOffsetValue, line.offsetEndX || 0);
+      this.colorPanel.setSwatch(line.color || this.state.currentColor);
       this.propText.value = "";
       this.propText.disabled = true;
     } else {
@@ -232,6 +238,7 @@ class PropertiesPanel {
       this.propText.value = text.text;
       this.propText.disabled = false;
       this.setOffsetControl(this.textOffset, this.textOffsetValue, text.offsetX || 0);
+      this.colorPanel.setSwatch(text.color || this.state.currentColor);
     }
     this.btnDeleteSelected.disabled = false;
     this.updateLineControlsForContext();
@@ -248,6 +255,7 @@ class PropertiesPanel {
     this.lineStartOffsetValue.textContent = String(this.state.lineOffsetStartX);
     this.lineEndOffsetValue.textContent = String(this.state.lineOffsetEndX);
     this.textOffsetValue.textContent = String(this.state.textOffsetX);
+    this.colorPanel.setSwatch(this.state.currentColor);
     this.update();
   }
 }
