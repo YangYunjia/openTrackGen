@@ -2,7 +2,7 @@
 /* Base theme tokens */
 :root {
   --toolbar-w: 140px;
-  --property-w: 220px;
+  --property-w: 300px;
   --bg: #f6f0e6;
   --panel: #efe6d8;
   --ink: #2b2b2b;
@@ -218,7 +218,7 @@ canvas {
   border-left: 1px solid rgba(0, 0, 0, 0.08);
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
 }
 
 .property-title {
@@ -238,12 +238,37 @@ canvas {
   align-items: stretch;
 }
 
+.property-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 2px;
+}
+
 .property-label {
   color: rgba(0, 0, 0, 0.6);
 }
 
 .property-value {
   font-weight: 600;
+}
+
+.property-spacer {
+  flex: 1 1 auto;
+  min-height: 12px;
+}
+
+.property-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, calc((var(--property-w) - 24px) / 2)));
+  column-gap: 12px;
+  row-gap: 16px;
+}
+
+.property-grid > .property-row:first-of-type,
+.property-grid > .property-row:nth-of-type(2),
+.property-grid > .property-row:nth-of-type(3) {
+  grid-column: 1 / -1;
 }
 
 @media (max-width: 720px) {
