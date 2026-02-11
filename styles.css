@@ -96,6 +96,15 @@ body {
   color: rgba(0, 0, 0, 0.6);
 }
 
+.tool-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--ink);
+  text-transform: none;
+}
+
 .tool-select {
   font-size: 13px;
   padding: 6px 8px;

@@ -4,9 +4,6 @@
   const overlayCanvas = document.getElementById("overlayCanvas");
   const hud = document.getElementById("hud");
 
-  const btnOpen = document.getElementById("btnOpen");
-  const btnSave = document.getElementById("btnSave");
-  const btnExport = document.getElementById("btnExport");
   const btnLine = document.getElementById("btnLine");
   const btnUndo = document.getElementById("btnUndo");
   const btnSelect = document.getElementById("btnSelect");
@@ -466,151 +463,6 @@
     drawAll();
   };
 
-  // Export the current view (including grid) to PNG.
-  const exportPng = () => {
-    const rect = drawCanvas.getBoundingClientRect();
-    const ratio = dpr();
-    const out = document.createElement("canvas");
-    out.width = Math.round(rect.width * ratio);
-    out.height = Math.round(rect.height * ratio);
-    const ctx = out.getContext("2d");
-
-    ctx.fillStyle = "#f6f0e6";
-    ctx.fillRect(0, 0, out.width, out.height);
-
-    ctx.save();
-    ctx.scale(ratio, ratio);
-    ctx.setTransform(
-      state.scale * ratio,
-      0,
-      0,
-      state.scale * ratio,
-      state.offsetX * ratio,
-      state.offsetY * ratio
-    );
-
-    const topLeft = screenToWorld(0, 0);
-    const bottomRight = screenToWorld(rect.width, rect.height);
-    const startX = Math.floor(topLeft.x / gridSize) * gridSize;
-    const endX = Math.ceil(bottomRight.x / gridSize) * gridSize;
-    const startY = Math.floor(topLeft.y / gridSize) * gridSize;
-    const endY = Math.ceil(bottomRight.y / gridSize) * gridSize;
-
-    ctx.lineWidth = (1 / state.scale) * ratio;
-    for (let x = startX; x <= endX; x += gridSize) {
-      const strong = (Math.round(x / gridSize) % 5) === 0;
-      ctx.strokeStyle = strong ? "rgba(0,0,0,0.18)" : "rgba(0,0,0,0.10)";
-      ctx.beginPath();
-      ctx.moveTo(x, startY);
-      ctx.lineTo(x, endY);
-      ctx.stroke();
-    }
-    for (let y = startY; y <= endY; y += gridSize) {
-      const strong = (Math.round(y / gridSize) % 5) === 0;
-      ctx.strokeStyle = strong ? "rgba(0,0,0,0.18)" : "rgba(0,0,0,0.10)";
-      ctx.beginPath();
-      ctx.moveTo(startX, y);
-      ctx.lineTo(endX, y);
-      ctx.stroke();
-    }
-
-    lineController.drawLinesForExport(ctx, ratio);
-
-    state.texts.forEach((text) => {
-      const offset = Array.isArray(text.offset) ? text.offset : [text.offsetX || 0, text.offsetY || 0];
-      ctx.fillStyle = text.color;
-      ctx.font = `${text.fontSize}px ${textFontFamily}`;
-      ctx.textBaseline = "top";
-      ctx.textAlign = "left";
-      ctx.fillText(text.text, text.x + (offset[0] || 0), text.y + (offset[1] || 0));
-    });
-
-    ctx.restore();
-
-    const a = document.createElement("a");
-    a.download = "canvas.png";
-    a.href = out.toDataURL("image/png");
-    a.click();
-  };
-
-  // Save line data to JSON.
-  const saveJson = () => {
-    const data = {
-      version: 1,
-      gridSize,
-      lines: state.lines,
-      texts: state.texts
-    };
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-    const a = document.createElement("a");
-    a.download = "canvas.json";
-    a.href = URL.createObjectURL(blob);
-    a.click();
-    URL.revokeObjectURL(a.href);
-  };
-
-  // Load line data from JSON.
-  const openJson = () => {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = "application/json";
-    input.addEventListener("change", () => {
-      const file = input.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = () => {
-        try {
-          const data = JSON.parse(reader.result);
-          const lines = Array.isArray(data.lines) ? data.lines : [];
-          const texts = Array.isArray(data.texts) ? data.texts : [];
-          state.lines = lines.map((line) => {
-            let offsets = line.offsets;
-            if (!Array.isArray(offsets)) {
-              offsets = [
-                [line.offsetStartX || 0, line.offsetStartY || 0],
-                [line.offsetEndX || 0, line.offsetEndY || 0]
-              ];
-            }
-            return {
-              start: line.start,
-              end: line.end,
-              color: line.color || state.currentColor,
-              width: line.width || 1,
-              style: line.style || "solid",
-              startCapStyle: line.startCapStyle || "none",
-              endCapStyle: line.endCapStyle || "none",
-              offsets
-            };
-          });
-          state.texts = texts.map((text) => {
-            const offset = Array.isArray(text.offset)
-              ? text.offset
-              : [text.offsetX || 0, text.offsetY || 0];
-            return {
-              x: text.x,
-              y: text.y,
-              text: text.text || "Text",
-              fontSize: text.fontSize || defaultTextSize,
-              color: text.color || state.currentColor,
-              offset
-            };
-          });
-          rebuildSelectionIndex();
-          propertiesPanel.update();
-          drawAll();
-        } catch (err) {
-          console.error("Failed to read file", err);
-        }
-      };
-      reader.readAsText(file);
-    });
-    input.click();
-  };
-
-  btnExport.addEventListener("click", exportPng);
-  btnSave.addEventListener("click", saveJson);
-  btnOpen.addEventListener("click", openJson);
-
   btnUndo.addEventListener("click", () => {
     state.lines.pop();
     rebuildSelectionIndex();
@@ -666,6 +518,21 @@
     state.offsetX = 40;
     state.offsetY = 40;
     rebuildSelectionIndex();
+    new IOController({
+      state,
+      gridSize,
+      drawCanvas,
+      dpr,
+      screenToWorld,
+      lineController,
+      textFontFamily,
+      defaultTextSize,
+      rebuildSelectionIndex,
+      afterLoad: () => {
+        propertiesPanel.update();
+        drawAll();
+      }
+    });
     colorPanel = new ColorPanel({
       state,
       selectionTool,

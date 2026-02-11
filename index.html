@@ -12,6 +12,12 @@
       <button id="btnOpen" class="tool-btn">Open</button>
       <button id="btnSave" class="tool-btn">Save</button>
       <button id="btnExport" class="tool-btn">Export PNG</button>
+      <div class="tool-group">
+        <label class="tool-checkbox">
+          <input id="exportTransparent" type="checkbox" />
+          Transparent background
+        </label>
+      </div>
       <button id="btnLine" class="tool-btn active">Draw Line</button>
       <button id="btnUndo" class="tool-btn">Undo</button>
       <button id="btnSelect" class="tool-btn">Select Line</button>
@@ -90,42 +96,42 @@
           <span class="property-label">Line Offset Start X</span>
           <span id="lineStartOffsetValue" class="property-value">0</span>
         </div>
-        <input id="lineStartOffset" class="tool-range" type="range" min="-5" max="5" step="1" value="0" />
+        <input id="lineStartOffset" class="tool-range" type="range" min="-5" max="5" step="0.5" value="0" />
       </div>
       <div class="property-row property-col">
         <div class="property-header">
           <span class="property-label">Line Offset Start Y</span>
           <span id="lineStartOffsetYValue" class="property-value">0</span>
         </div>
-        <input id="lineStartOffsetY" class="tool-range" type="range" min="-5" max="5" step="1" value="0" />
+        <input id="lineStartOffsetY" class="tool-range" type="range" min="-5" max="5" step="0.5" value="0" />
       </div>
       <div class="property-row property-col">
         <div class="property-header">
           <span class="property-label">Line Offset End X</span>
           <span id="lineEndOffsetValue" class="property-value">0</span>
         </div>
-        <input id="lineEndOffset" class="tool-range" type="range" min="-5" max="5" step="1" value="0" />
+        <input id="lineEndOffset" class="tool-range" type="range" min="-5" max="5" step="0.5" value="0" />
       </div>
       <div class="property-row property-col">
         <div class="property-header">
           <span class="property-label">Line Offset End Y</span>
           <span id="lineEndOffsetYValue" class="property-value">0</span>
         </div>
-        <input id="lineEndOffsetY" class="tool-range" type="range" min="-5" max="5" step="1" value="0" />
+        <input id="lineEndOffsetY" class="tool-range" type="range" min="-5" max="5" step="0.5" value="0" />
       </div>
         <div class="property-row property-col">
           <div class="property-header">
             <span class="property-label">Text Offset X</span>
             <span id="textOffsetValue" class="property-value">0</span>
           </div>
-          <input id="textOffset" class="tool-range" type="range" min="-5" max="5" step="1" value="0" />
+          <input id="textOffset" class="tool-range" type="range" min="-5" max="5" step="0.5" value="0" />
         </div>
         <div class="property-row property-col">
           <div class="property-header">
             <span class="property-label">Text Offset Y</span>
             <span id="textOffsetYValue" class="property-value">0</span>
           </div>
-          <input id="textOffsetY" class="tool-range" type="range" min="-5" max="5" step="1" value="0" />
+          <input id="textOffsetY" class="tool-range" type="range" min="-5" max="5" step="0.5" value="0" />
         </div>
         <div class="property-row property-col">
           <span class="property-label">Text</span>
@@ -160,6 +166,7 @@
   <script src="delete.js"></script>
   <script src="color_panel.js"></script>
   <script src="properties.js"></script>
+  <script src="io.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
