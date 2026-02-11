@@ -28,6 +28,8 @@ class LineController {
       width: this.state.lineWidth,
       style: this.state.lineStyle,
       cap: this.state.lineCap,
+      startCapStyle: this.state.lineStartCapStyle || "none",
+      endCapStyle: this.state.lineEndCapStyle || "none",
       align: this.state.lineAlign,
       offsetStartX: this.state.lineOffsetStartX || 0,
       offsetEndX: this.state.lineOffsetEndX || 0
@@ -60,7 +62,7 @@ class LineController {
         selectedItem.index === index;
       const strokeWidth = line.width || 1;
       const align = line.align || "center";
-      const cap = line.cap || "round";
+      const cap = "round";
       const ax = line.start.x + (line.offsetStartX || 0);
       const ay = line.start.y;
       const bx = line.end.x + (line.offsetEndX || 0);
@@ -94,6 +96,8 @@ class LineController {
       ctx.lineTo(ex, ey);
       ctx.stroke();
 
+      this.drawEndCaps(ctx, line, sx, sy, ex, ey, len, 1);
+
       if (line.style === "double") {
         if (len > 0) {
           const nx = -dy / len;
@@ -123,7 +127,9 @@ class LineController {
       setTransform,
       this.state.currentColor,
       this.state.lineOffsetStartX,
-      this.state.lineOffsetEndX
+      this.state.lineOffsetEndX,
+      this.state.lineStartCapStyle,
+      this.state.lineEndCapStyle
     );
   }
 
@@ -131,7 +137,7 @@ class LineController {
     this.state.lines.forEach((line) => {
       const strokeWidth = line.width || 1;
       const align = line.align || "center";
-      const cap = line.cap || "round";
+      const cap = "round";
       const ax = line.start.x + (line.offsetStartX || 0);
       const ay = line.start.y;
       const bx = line.end.x + (line.offsetEndX || 0);
@@ -165,6 +171,8 @@ class LineController {
       ctx.lineTo(ex, ey);
       ctx.stroke();
 
+      this.drawEndCaps(ctx, line, sx, sy, ex, ey, len, ratio);
+
       if (line.style === "double") {
         if (len > 0) {
           const nx = -dy / len;
@@ -183,5 +191,84 @@ class LineController {
       }
       ctx.setLineDash([]);
     });
+  }
+
+  drawEndCaps(ctx, line, sx, sy, ex, ey, len, ratio) {
+    if (!len) return;
+    const ux = (ex - sx) / len;
+    const uy = (ey - sy) / len;
+    const size = Math.max(6, (line.width || 1) * 3) * ratio;
+    const half = size * 0.6;
+    const drawArrow = (x, y, dirX, dirY) => {
+      const nx = -dirY;
+      const ny = dirX;
+      const tipX = x + dirX * size;
+      const tipY = y + dirY * size;
+      ctx.fillStyle = ctx.strokeStyle;
+      ctx.beginPath();
+      ctx.moveTo(tipX, tipY);
+      ctx.lineTo(x + nx * half, y + ny * half);
+      ctx.lineTo(x - nx * half, y - ny * half);
+      ctx.closePath();
+      ctx.fill();
+    };
+    const drawCCap = (x, y, dirX, dirY) => {
+      const nx = -dirY;
+      const ny = dirX;
+      const depth = size * 0.8;
+      const innerX = x + dirX * depth;
+      const innerY = y + dirY * depth;
+      const outerX = x - dirX * depth;
+      const outerY = y - dirY * depth;
+      ctx.beginPath();
+      ctx.moveTo(outerX + nx * half, outerY + ny * half);
+      ctx.lineTo(outerX - nx * half, outerY - ny * half);
+      ctx.lineTo(innerX - nx * half, innerY - ny * half);
+      ctx.moveTo(outerX + nx * half, outerY + ny * half);
+      ctx.lineTo(innerX + nx * half, innerY + ny * half);
+      ctx.stroke();
+    };
+    const drawSquareCap = (x, y, dirX, dirY) => {
+      const nx = -dirY;
+      const ny = dirX;
+      const halfW = (line.width || 1) * 0.5 * ratio;
+      const halfL = halfW;
+      ctx.fillStyle = ctx.strokeStyle;
+      ctx.beginPath();
+      ctx.moveTo(x + nx * halfW + dirX * halfL, y + ny * halfW + dirY * halfL);
+      ctx.lineTo(x - nx * halfW + dirX * halfL, y - ny * halfW + dirY * halfL);
+      ctx.lineTo(x - nx * halfW - dirX * halfL, y - ny * halfW - dirY * halfL);
+      ctx.lineTo(x + nx * halfW - dirX * halfL, y + ny * halfW - dirY * halfL);
+      ctx.closePath();
+      ctx.fill();
+    };
+    const drawTCap = (x, y, dirX, dirY) => {
+      const nx = -dirY;
+      const ny = dirX;
+      ctx.beginPath();
+      ctx.moveTo(x + nx * half, y + ny * half);
+      ctx.lineTo(x - nx * half, y - ny * half);
+      ctx.stroke();
+    };
+
+    if (line.startCapStyle === "arrow") {
+      drawArrow(sx, sy, -ux, -uy);
+    } else if (line.startCapStyle === "c") {
+      drawCCap(sx, sy, ux, uy);
+    } else if (line.startCapStyle === "t") {
+      drawTCap(sx, sy, ux, uy);
+    } else if (line.startCapStyle === "square") {
+      drawSquareCap(sx, sy, -ux, -uy);
+    }
+
+    if (line.endCapStyle === "arrow") {
+      drawArrow(ex, ey, ux, uy);
+    } else if (line.endCapStyle === "c") {
+      drawCCap(ex, ey, -ux, -uy);
+    } else if (line.endCapStyle === "t") {
+      drawTCap(ex, ey, -ux, -uy);
+    } else if (line.endCapStyle === "square") {
+      drawSquareCap(ex, ey, ux, uy);
+    }
   }
 }

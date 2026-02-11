@@ -29,6 +29,8 @@
     lineWidth: 1,
     lineStyle: "solid",
     lineCap: "round",
+    lineStartCapStyle: "none",
+    lineEndCapStyle: "none",
     lineAlign: "center",
     lineOffsetStartX: 0,
     lineOffsetEndX: 0,
@@ -567,6 +569,8 @@
             width: line.width || 1,
             style: line.style || "solid",
             cap: line.cap || "round",
+            startCapStyle: line.startCapStyle || "none",
+            endCapStyle: line.endCapStyle || "none",
             align: line.align || "center",
             offsetStartX: line.offsetStartX || 0,
             offsetEndX: line.offsetEndX || 0

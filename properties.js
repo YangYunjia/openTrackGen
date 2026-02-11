@@ -11,7 +11,8 @@ class PropertiesPanel {
 
     this.lineWidthSelect = document.getElementById("lineWidthSelect");
     this.lineStyleSelect = document.getElementById("lineStyleSelect");
-    this.lineCapSelect = document.getElementById("lineCapSelect");
+    this.lineStartCapSelect = document.getElementById("lineStartCapSelect");
+    this.lineEndCapSelect = document.getElementById("lineEndCapSelect");
     this.lineAlignSelect = document.getElementById("lineAlignSelect");
     this.lineStartOffset = document.getElementById("lineStartOffset");
     this.lineEndOffset = document.getElementById("lineEndOffset");
@@ -80,18 +81,32 @@ class PropertiesPanel {
       this.state.lineStyle = value;
     });
 
-    this.lineCapSelect.addEventListener("change", (e) => {
+    this.lineStartCapSelect.addEventListener("change", (e) => {
       const value = e.target.value;
       if (this.state.tool === "select") {
         const item = this.selectionTool.getSelectedItem();
         if (item && item.kind === "line") {
-          this.state.lines[item.index].cap = value;
+          this.state.lines[item.index].startCapStyle = value;
           this.rebuildSelectionIndex();
           this.drawLines();
           return;
         }
       }
-      this.state.lineCap = value;
+      this.state.lineStartCapStyle = value;
+    });
+
+    this.lineEndCapSelect.addEventListener("change", (e) => {
+      const value = e.target.value;
+      if (this.state.tool === "select") {
+        const item = this.selectionTool.getSelectedItem();
+        if (item && item.kind === "line") {
+          this.state.lines[item.index].endCapStyle = value;
+          this.rebuildSelectionIndex();
+          this.drawLines();
+          return;
+        }
+      }
+      this.state.lineEndCapStyle = value;
     });
 
     this.lineAlignSelect.addEventListener("change", (e) => {
@@ -174,7 +189,8 @@ class PropertiesPanel {
 
     this.lineWidthSelect.disabled = !canEditLine;
     this.lineStyleSelect.disabled = !canEditLine;
-    this.lineCapSelect.disabled = !canEditLine;
+    this.lineStartCapSelect.disabled = !canEditLine;
+    this.lineEndCapSelect.disabled = !canEditLine;
     this.lineAlignSelect.disabled = !canEditLine;
     this.lineStartOffset.disabled = !canEditLine;
     this.lineEndOffset.disabled = !canEditLine;
@@ -184,7 +200,8 @@ class PropertiesPanel {
     if (isDraw) {
       this.lineWidthSelect.value = String(this.state.lineWidth);
       this.lineStyleSelect.value = this.state.lineStyle;
-      this.lineCapSelect.value = this.state.lineCap;
+      this.lineStartCapSelect.value = this.state.lineStartCapStyle;
+      this.lineEndCapSelect.value = this.state.lineEndCapStyle;
       this.lineAlignSelect.value = this.state.lineAlign;
       this.setOffsetControl(this.lineStartOffset, this.lineStartOffsetValue, this.state.lineOffsetStartX);
       this.setOffsetControl(this.lineEndOffset, this.lineEndOffsetValue, this.state.lineOffsetEndX);
@@ -226,7 +243,8 @@ class PropertiesPanel {
       const line = item.data;
       this.lineWidthSelect.value = String(line.width || 1);
       this.lineStyleSelect.value = line.style || "solid";
-      this.lineCapSelect.value = line.cap || "round";
+      this.lineStartCapSelect.value = line.startCapStyle || "none";
+      this.lineEndCapSelect.value = line.endCapStyle || "none";
       this.lineAlignSelect.value = line.align || "center";
       this.setOffsetControl(this.lineStartOffset, this.lineStartOffsetValue, line.offsetStartX || 0);
       this.setOffsetControl(this.lineEndOffset, this.lineEndOffsetValue, line.offsetEndX || 0);
@@ -247,7 +265,8 @@ class PropertiesPanel {
   init() {
     this.lineWidthSelect.value = String(this.state.lineWidth);
     this.lineStyleSelect.value = this.state.lineStyle;
-    this.lineCapSelect.value = this.state.lineCap;
+    this.lineStartCapSelect.value = this.state.lineStartCapStyle;
+    this.lineEndCapSelect.value = this.state.lineEndCapStyle;
     this.lineAlignSelect.value = this.state.lineAlign;
     this.lineStartOffset.value = String(this.state.lineOffsetStartX);
     this.lineEndOffset.value = String(this.state.lineOffsetEndX);

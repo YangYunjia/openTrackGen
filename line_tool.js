@@ -69,7 +69,7 @@ class LineTool {
   }
 
   // Draw preview line and hover point into the overlay canvas.
-  drawOverlay(ctx, scale, setTransform, currentColor, offsetStartX, offsetEndX) {
+  drawOverlay(ctx, scale, setTransform, currentColor, offsetStartX, offsetEndX, startCapStyle, endCapStyle) {
     ctx.save();
     setTransform(ctx);
     const startOffsetX = offsetStartX || 0;
@@ -110,6 +110,82 @@ class LineTool {
       ctx.lineTo(ex, ey);
       ctx.stroke();
       ctx.setLineDash([]);
+
+      if (len > 0) {
+        const ux = (ex - sx) / len;
+        const uy = (ey - sy) / len;
+        const size = Math.max(6, strokeWidth * 3);
+        const half = size * 0.6;
+        const drawArrow = (x, y, dirX, dirY) => {
+          const nx = -dirY;
+          const ny = dirX;
+          const tipX = x + dirX * size;
+          const tipY = y + dirY * size;
+          ctx.fillStyle = currentColor;
+          ctx.beginPath();
+          ctx.moveTo(tipX, tipY);
+          ctx.lineTo(x + nx * half, y + ny * half);
+          ctx.lineTo(x - nx * half, y - ny * half);
+          ctx.closePath();
+          ctx.fill();
+        };
+        const drawCCap = (x, y, dirX, dirY) => {
+          const nx = -dirY;
+          const ny = dirX;
+          const depth = size * 0.8;
+          const innerX = x + dirX * depth;
+          const innerY = y + dirY * depth;
+          const outerX = x - dirX * depth;
+          const outerY = y - dirY * depth;
+          ctx.beginPath();
+          ctx.moveTo(outerX + nx * half, outerY + ny * half);
+          ctx.lineTo(outerX - nx * half, outerY - ny * half);
+          ctx.lineTo(innerX - nx * half, innerY - ny * half);
+          ctx.moveTo(outerX + nx * half, outerY + ny * half);
+          ctx.lineTo(innerX + nx * half, innerY + ny * half);
+          ctx.stroke();
+        };
+        const drawSquareCap = (x, y, dirX, dirY) => {
+          const nx = -dirY;
+          const ny = dirX;
+          const halfW = (strokeWidth * 0.5);
+          const halfL = halfW;
+          ctx.fillStyle = currentColor;
+          ctx.beginPath();
+          ctx.moveTo(x + nx * halfW + dirX * halfL, y + ny * halfW + dirY * halfL);
+          ctx.lineTo(x - nx * halfW + dirX * halfL, y - ny * halfW + dirY * halfL);
+          ctx.lineTo(x - nx * halfW - dirX * halfL, y - ny * halfW - dirY * halfL);
+          ctx.lineTo(x + nx * halfW - dirX * halfL, y + ny * halfW - dirY * halfL);
+          ctx.closePath();
+          ctx.fill();
+        };
+        const drawTCap = (x, y, dirX, dirY) => {
+          const nx = -dirY;
+          const ny = dirX;
+          ctx.beginPath();
+          ctx.moveTo(x + nx * half, y + ny * half);
+          ctx.lineTo(x - nx * half, y - ny * half);
+          ctx.stroke();
+        };
+        if (startCapStyle === "arrow") {
+          drawArrow(sx, sy, -ux, -uy);
+        } else if (startCapStyle === "c") {
+          drawCCap(sx, sy, ux, uy);
+        } else if (startCapStyle === "t") {
+          drawTCap(sx, sy, ux, uy);
+        } else if (startCapStyle === "square") {
+          drawSquareCap(sx, sy, -ux, -uy);
+        }
+        if (endCapStyle === "arrow") {
+          drawArrow(ex, ey, ux, uy);
+        } else if (endCapStyle === "c") {
+          drawCCap(ex, ey, -ux, -uy);
+        } else if (endCapStyle === "t") {
+          drawTCap(ex, ey, -ux, -uy);
+        } else if (endCapStyle === "square") {
+          drawSquareCap(ex, ey, ux, uy);
+        }
+      }
 
       if (style.kind === "double") {
         if (len > 0) {
