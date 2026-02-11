@@ -28,6 +28,7 @@ class PropertiesPanel {
     this.propStatus = document.getElementById("propStatus");
     this.propType = document.getElementById("propType");
     this.propId = document.getElementById("propId");
+    this.linePresetSelect = document.getElementById("linePresetSelect");
     this.propText = document.getElementById("propText");
     this.btnDeleteSelected = document.getElementById("btnDeleteSelected");
 
@@ -41,8 +42,10 @@ class PropertiesPanel {
       { input: this.textOffset, valueEl: this.textOffsetValue, axis: 0 },
       { input: this.textOffsetY, valueEl: this.textOffsetYValue, axis: 1 }
     ];
+    this.linePresets = [];
 
     this.bindEvents();
+    this.loadPresets();
   }
 
   bindEvents() {
@@ -109,6 +112,15 @@ class PropertiesPanel {
         }
       }
       this.state.lineStartCapStyle = value;
+    });
+
+    this.linePresetSelect.addEventListener("change", (e) => {
+      const value = e.target.value;
+      if (!value) return;
+      const applied = this.applyLinePreset(value);
+      if (applied) {
+        this.linePresetSelect.value = "";
+      }
     });
 
     this.lineEndCapSelect.addEventListener("change", (e) => {
@@ -279,6 +291,63 @@ class PropertiesPanel {
     }
     this.btnDeleteSelected.disabled = false;
     this.updateLineControlsForContext();
+  }
+
+  applyLinePreset(presetId) {
+    const config = this.linePresets.find((preset) => preset.id === presetId);
+    if (!config) return false;
+    if (this.state.tool === "select") {
+      const item = this.selectionTool.getSelectedItem();
+      if (!item || item.kind !== "line") return false;
+      this.state.lines[item.index].width = config.width;
+      this.state.lines[item.index].style = config.style;
+      this.state.lines[item.index].offsets = config.offsets.map((pair) => [pair[0], pair[1]]);
+      this.state.lines[item.index].startCapStyle = config.startCapStyle;
+      this.state.lines[item.index].endCapStyle = config.endCapStyle;
+      this.rebuildSelectionIndex();
+      this.drawLines();
+      this.update();
+      return true;
+    }
+    this.state.lineWidth = config.width;
+    this.state.lineStyle = config.style;
+    this.state.lineOffsets = config.offsets.map((pair) => [pair[0], pair[1]]);
+    this.state.lineStartCapStyle = config.startCapStyle;
+    this.state.lineEndCapStyle = config.endCapStyle;
+    this.updateLineControlsForContext();
+    return true;
+  }
+
+  async loadPresets() {
+    if (Array.isArray(window.LINE_PRESETS)) {
+      this.linePresets = window.LINE_PRESETS.filter((preset) => preset && preset.id && preset.label);
+      this.renderLinePresetOptions();
+      return;
+    }
+    this.renderPresetLoadError();
+  }
+
+  renderLinePresetOptions() {
+    while (this.linePresetSelect.options.length > 1) {
+      this.linePresetSelect.remove(1);
+    }
+    this.linePresets.forEach((preset) => {
+      const option = document.createElement("option");
+      option.value = preset.id;
+      option.textContent = preset.label;
+      this.linePresetSelect.appendChild(option);
+    });
+  }
+
+  renderPresetLoadError() {
+    while (this.linePresetSelect.options.length > 1) {
+      this.linePresetSelect.remove(1);
+    }
+    const option = document.createElement("option");
+    option.value = "";
+    option.textContent = "Failed to load presets";
+    option.disabled = true;
+    this.linePresetSelect.appendChild(option);
   }
 
   init() {
