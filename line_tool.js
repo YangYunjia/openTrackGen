@@ -69,26 +69,28 @@ class LineTool {
   }
 
   // Draw preview line and hover point into the overlay canvas.
-  drawOverlay(ctx, scale, setTransform, currentColor, offsetStartX, offsetEndX, startCapStyle, endCapStyle) {
+  drawOverlay(ctx, scale, setTransform, currentColor, offsetStartX, offsetEndX, offsetStartY, offsetEndY, startCapStyle, endCapStyle) {
     ctx.save();
     setTransform(ctx);
     const startOffsetX = offsetStartX || 0;
     const endOffsetX = offsetEndX || 0;
+    const startOffsetY = offsetStartY || 0;
+    const endOffsetY = offsetEndY || 0;
 
     if (this.drawStart) {
       const style = this.getStyle();
       const strokeWidth = style.width || 1;
       ctx.strokeStyle = currentColor;
       ctx.lineWidth = strokeWidth;
-      ctx.lineCap = style.cap || "round";
+      ctx.lineCap = "round";
       if (style.kind === "dashed") {
         ctx.setLineDash([6, 6]);
       }
       const worldPos = this.screenToWorld(this.mouse.x, this.mouse.y);
       const ax = this.drawStart.x + startOffsetX;
-      const ay = this.drawStart.y;
+      const ay = this.drawStart.y + startOffsetY;
       const bx = worldPos.x + endOffsetX;
-      const by = worldPos.y;
+      const by = worldPos.y + endOffsetY;
       const dx = bx - ax;
       const dy = by - ay;
       const len = Math.hypot(dx, dy);
@@ -214,7 +216,7 @@ class LineTool {
       ctx.strokeStyle = "#c5482a";
       ctx.lineWidth = 2 / scale;
       ctx.beginPath();
-      ctx.arc(this.hoverPoint.x + startOffsetX, this.hoverPoint.y, 5 / scale, 0, Math.PI * 2);
+      ctx.arc(this.hoverPoint.x + startOffsetX, this.hoverPoint.y + startOffsetY, 5 / scale, 0, Math.PI * 2);
       ctx.stroke();
     }
 

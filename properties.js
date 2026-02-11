@@ -13,12 +13,15 @@ class PropertiesPanel {
     this.lineStyleSelect = document.getElementById("lineStyleSelect");
     this.lineStartCapSelect = document.getElementById("lineStartCapSelect");
     this.lineEndCapSelect = document.getElementById("lineEndCapSelect");
-    this.lineAlignSelect = document.getElementById("lineAlignSelect");
     this.lineStartOffset = document.getElementById("lineStartOffset");
     this.lineEndOffset = document.getElementById("lineEndOffset");
+    this.lineStartOffsetY = document.getElementById("lineStartOffsetY");
+    this.lineEndOffsetY = document.getElementById("lineEndOffsetY");
     this.textOffset = document.getElementById("textOffset");
     this.lineStartOffsetValue = document.getElementById("lineStartOffsetValue");
     this.lineEndOffsetValue = document.getElementById("lineEndOffsetValue");
+    this.lineStartOffsetYValue = document.getElementById("lineStartOffsetYValue");
+    this.lineEndOffsetYValue = document.getElementById("lineEndOffsetYValue");
     this.textOffsetValue = document.getElementById("textOffsetValue");
     this.propStatus = document.getElementById("propStatus");
     this.propType = document.getElementById("propType");
@@ -109,20 +112,6 @@ class PropertiesPanel {
       this.state.lineEndCapStyle = value;
     });
 
-    this.lineAlignSelect.addEventListener("change", (e) => {
-      const value = e.target.value;
-      if (this.state.tool === "select") {
-        const item = this.selectionTool.getSelectedItem();
-        if (item && item.kind === "line") {
-          this.state.lines[item.index].align = value;
-          this.rebuildSelectionIndex();
-          this.drawLines();
-          return;
-        }
-      }
-      this.state.lineAlign = value;
-    });
-
     this.lineStartOffset.addEventListener("input", (e) => {
       const value = Number(e.target.value) || 0;
       this.lineStartOffsetValue.textContent = String(value);
@@ -138,6 +127,21 @@ class PropertiesPanel {
       this.state.lineOffsetStartX = value;
     });
 
+    this.lineStartOffsetY.addEventListener("input", (e) => {
+      const value = Number(e.target.value) || 0;
+      this.lineStartOffsetYValue.textContent = String(value);
+      if (this.state.tool === "select") {
+        const item = this.selectionTool.getSelectedItem();
+        if (item && item.kind === "line") {
+          this.state.lines[item.index].offsetStartY = value;
+          this.rebuildSelectionIndex();
+          this.drawLines();
+          return;
+        }
+      }
+      this.state.lineOffsetStartY = value;
+    });
+
     this.lineEndOffset.addEventListener("input", (e) => {
       const value = Number(e.target.value) || 0;
       this.lineEndOffsetValue.textContent = String(value);
@@ -151,6 +155,21 @@ class PropertiesPanel {
         }
       }
       this.state.lineOffsetEndX = value;
+    });
+
+    this.lineEndOffsetY.addEventListener("input", (e) => {
+      const value = Number(e.target.value) || 0;
+      this.lineEndOffsetYValue.textContent = String(value);
+      if (this.state.tool === "select") {
+        const item = this.selectionTool.getSelectedItem();
+        if (item && item.kind === "line") {
+          this.state.lines[item.index].offsetEndY = value;
+          this.rebuildSelectionIndex();
+          this.drawLines();
+          return;
+        }
+      }
+      this.state.lineOffsetEndY = value;
     });
 
     this.textOffset.addEventListener("input", (e) => {
@@ -191,9 +210,10 @@ class PropertiesPanel {
     this.lineStyleSelect.disabled = !canEditLine;
     this.lineStartCapSelect.disabled = !canEditLine;
     this.lineEndCapSelect.disabled = !canEditLine;
-    this.lineAlignSelect.disabled = !canEditLine;
     this.lineStartOffset.disabled = !canEditLine;
     this.lineEndOffset.disabled = !canEditLine;
+    this.lineStartOffsetY.disabled = !canEditLine;
+    this.lineEndOffsetY.disabled = !canEditLine;
     this.textOffset.disabled = !canEditText;
     this.colorPanel.setEnabled(canEditLine || canEditText);
 
@@ -202,9 +222,10 @@ class PropertiesPanel {
       this.lineStyleSelect.value = this.state.lineStyle;
       this.lineStartCapSelect.value = this.state.lineStartCapStyle;
       this.lineEndCapSelect.value = this.state.lineEndCapStyle;
-      this.lineAlignSelect.value = this.state.lineAlign;
       this.setOffsetControl(this.lineStartOffset, this.lineStartOffsetValue, this.state.lineOffsetStartX);
+      this.setOffsetControl(this.lineStartOffsetY, this.lineStartOffsetYValue, this.state.lineOffsetStartY);
       this.setOffsetControl(this.lineEndOffset, this.lineEndOffsetValue, this.state.lineOffsetEndX);
+      this.setOffsetControl(this.lineEndOffsetY, this.lineEndOffsetYValue, this.state.lineOffsetEndY);
     }
 
     if (isText) {
@@ -245,9 +266,10 @@ class PropertiesPanel {
       this.lineStyleSelect.value = line.style || "solid";
       this.lineStartCapSelect.value = line.startCapStyle || "none";
       this.lineEndCapSelect.value = line.endCapStyle || "none";
-      this.lineAlignSelect.value = line.align || "center";
       this.setOffsetControl(this.lineStartOffset, this.lineStartOffsetValue, line.offsetStartX || 0);
+      this.setOffsetControl(this.lineStartOffsetY, this.lineStartOffsetYValue, line.offsetStartY || 0);
       this.setOffsetControl(this.lineEndOffset, this.lineEndOffsetValue, line.offsetEndX || 0);
+      this.setOffsetControl(this.lineEndOffsetY, this.lineEndOffsetYValue, line.offsetEndY || 0);
       this.colorPanel.setSwatch(line.color || this.state.currentColor);
       this.propText.value = "";
       this.propText.disabled = true;
@@ -267,12 +289,15 @@ class PropertiesPanel {
     this.lineStyleSelect.value = this.state.lineStyle;
     this.lineStartCapSelect.value = this.state.lineStartCapStyle;
     this.lineEndCapSelect.value = this.state.lineEndCapStyle;
-    this.lineAlignSelect.value = this.state.lineAlign;
     this.lineStartOffset.value = String(this.state.lineOffsetStartX);
     this.lineEndOffset.value = String(this.state.lineOffsetEndX);
+    this.lineStartOffsetY.value = String(this.state.lineOffsetStartY);
+    this.lineEndOffsetY.value = String(this.state.lineOffsetEndY);
     this.textOffset.value = String(this.state.textOffsetX);
     this.lineStartOffsetValue.textContent = String(this.state.lineOffsetStartX);
     this.lineEndOffsetValue.textContent = String(this.state.lineOffsetEndX);
+    this.lineStartOffsetYValue.textContent = String(this.state.lineOffsetStartY);
+    this.lineEndOffsetYValue.textContent = String(this.state.lineOffsetEndY);
     this.textOffsetValue.textContent = String(this.state.textOffsetX);
     this.colorPanel.setSwatch(this.state.currentColor);
     this.update();

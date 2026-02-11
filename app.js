@@ -28,12 +28,12 @@
     currentColor: "#000000",
     lineWidth: 1,
     lineStyle: "solid",
-    lineCap: "round",
     lineStartCapStyle: "none",
     lineEndCapStyle: "none",
-    lineAlign: "center",
     lineOffsetStartX: 0,
     lineOffsetEndX: 0,
+    lineOffsetStartY: 0,
+    lineOffsetEndY: 0,
     textOffsetX: 0,
     lines: [],
     texts: [],
@@ -86,9 +86,7 @@
     worldToScreen,
     getStyle: () => ({
       width: state.lineWidth,
-      kind: state.lineStyle,
-      cap: state.lineCap,
-      align: state.lineAlign
+      kind: state.lineStyle
     })
   });
   const lineController = new LineController({ state, lineTool });
@@ -131,9 +129,9 @@
     if (item.kind === "line") {
       const line = item.data;
       const ax = line.start.x + (line.offsetStartX || 0);
-      const ay = line.start.y;
+      const ay = line.start.y + (line.offsetStartY || 0);
       const bx = line.end.x + (line.offsetEndX || 0);
-      const by = line.end.y;
+      const by = line.end.y + (line.offsetEndY || 0);
       const half = (line.width || 1) / 2;
       const minX = Math.min(ax, bx) - half;
       const maxX = Math.max(ax, bx) + half;
@@ -164,9 +162,9 @@
         x,
         y,
         line.start.x + (line.offsetStartX || 0),
-        line.start.y,
+        line.start.y + (line.offsetStartY || 0),
         line.end.x + (line.offsetEndX || 0),
-        line.end.y
+        line.end.y + (line.offsetEndY || 0)
       );
     }
     if (item.kind === "text") {
@@ -568,12 +566,12 @@
             color: line.color || state.currentColor,
             width: line.width || 1,
             style: line.style || "solid",
-            cap: line.cap || "round",
             startCapStyle: line.startCapStyle || "none",
             endCapStyle: line.endCapStyle || "none",
-            align: line.align || "center",
             offsetStartX: line.offsetStartX || 0,
-            offsetEndX: line.offsetEndX || 0
+            offsetEndX: line.offsetEndX || 0,
+            offsetStartY: line.offsetStartY || 0,
+            offsetEndY: line.offsetEndY || 0
           }));
           state.texts = texts.map((text) => ({
             x: text.x,
