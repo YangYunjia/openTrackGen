@@ -30,11 +30,8 @@
     lineStyle: "solid",
     lineStartCapStyle: "none",
     lineEndCapStyle: "none",
-    lineOffsetStartX: 0,
-    lineOffsetEndX: 0,
-    lineOffsetStartY: 0,
-    lineOffsetEndY: 0,
-    textOffsetX: 0,
+    lineOffsets: [[0, 0], [0, 0]],
+    textOffset: [0, 0],
     lines: [],
     texts: [],
     tool: "draw"
@@ -128,10 +125,11 @@
     if (!item) return null;
     if (item.kind === "line") {
       const line = item.data;
-      const ax = line.start.x + (line.offsetStartX || 0);
-      const ay = line.start.y + (line.offsetStartY || 0);
-      const bx = line.end.x + (line.offsetEndX || 0);
-      const by = line.end.y + (line.offsetEndY || 0);
+      const offsets = Array.isArray(line.offsets) ? line.offsets : [[0, 0], [0, 0]];
+      const ax = line.start.x + (offsets[0]?.[0] || 0);
+      const ay = line.start.y + (offsets[0]?.[1] || 0);
+      const bx = line.end.x + (offsets[1]?.[0] || 0);
+      const by = line.end.y + (offsets[1]?.[1] || 0);
       const half = (line.width || 1) / 2;
       const minX = Math.min(ax, bx) - half;
       const maxX = Math.max(ax, bx) + half;
@@ -142,8 +140,9 @@
     if (item.kind === "text") {
       const text = item.data;
       const box = text.__box || measureTextBox(text.text, text.fontSize);
-      const minX = text.x + (text.offsetX || 0);
-      const minY = text.y;
+      const offset = Array.isArray(text.offset) ? text.offset : [text.offsetX || 0, text.offsetY || 0];
+      const minX = text.x + (offset[0] || 0);
+      const minY = text.y + (offset[1] || 0);
       return { minX, minY, maxX: minX + box.width, maxY: minY + box.height };
     }
     return null;
@@ -158,26 +157,27 @@
   const distanceFn = (item, x, y) => {
     if (item.kind === "line") {
       const line = item.data;
+      const offsets = Array.isArray(line.offsets) ? line.offsets : [[0, 0], [0, 0]];
       return distanceToSegment(
         x,
         y,
-        line.start.x + (line.offsetStartX || 0),
-        line.start.y + (line.offsetStartY || 0),
-        line.end.x + (line.offsetEndX || 0),
-        line.end.y + (line.offsetEndY || 0)
+        line.start.x + (offsets[0]?.[0] || 0),
+        line.start.y + (offsets[0]?.[1] || 0),
+        line.end.x + (offsets[1]?.[0] || 0),
+        line.end.y + (offsets[1]?.[1] || 0)
       );
     }
     if (item.kind === "text") {
       const text = item.data;
       const box = text.__box || measureTextBox(text.text, text.fontSize);
-      const ox = text.offsetX || 0;
+      const offset = Array.isArray(text.offset) ? text.offset : [text.offsetX || 0, text.offsetY || 0];
       return distanceToRect(
         x,
         y,
-        text.x + ox,
-        text.y,
-        text.x + ox + box.width,
-        text.y + box.height
+        text.x + (offset[0] || 0),
+        text.y + (offset[1] || 0),
+        text.x + (offset[0] || 0) + box.width,
+        text.y + (offset[1] || 0) + box.height
       );
     }
     return Infinity;
@@ -256,11 +256,12 @@
     ctx.save();
     setTransform(ctx);
     state.texts.forEach((text) => {
+      const offset = Array.isArray(text.offset) ? text.offset : [text.offsetX || 0, text.offsetY || 0];
       ctx.fillStyle = text.color;
       ctx.font = `${text.fontSize}px ${textFontFamily}`;
       ctx.textBaseline = "top";
       ctx.textAlign = "left";
-      ctx.fillText(text.text, text.x + (text.offsetX || 0), text.y);
+      ctx.fillText(text.text, text.x + (offset[0] || 0), text.y + (offset[1] || 0));
     });
 
     const hovered = selectionTool.getHoveredItem();
@@ -268,12 +269,13 @@
     const highlightText = (item, color) => {
       if (!item || item.kind !== "text") return;
       const box = item.data.__box || measureTextBox(item.data.text, item.data.fontSize);
+      const offset = Array.isArray(item.data.offset) ? item.data.offset : [item.data.offsetX || 0, item.data.offsetY || 0];
       ctx.strokeStyle = color;
       ctx.lineWidth = 1 / state.scale;
       ctx.setLineDash([]);
       ctx.strokeRect(
-        item.data.x + (item.data.offsetX || 0),
-        item.data.y,
+        item.data.x + (offset[0] || 0),
+        item.data.y + (offset[1] || 0),
         box.width,
         box.height
       );
@@ -394,7 +396,7 @@
           text: "Text",
           fontSize: defaultTextSize,
           color: state.currentColor,
-          offsetX: state.textOffsetX || 0
+          offset: [state.textOffset[0] || 0, state.textOffset[1] || 0]
         });
         rebuildSelectionIndex();
         drawAll();
@@ -515,11 +517,12 @@
     lineController.drawLinesForExport(ctx, ratio);
 
     state.texts.forEach((text) => {
+      const offset = Array.isArray(text.offset) ? text.offset : [text.offsetX || 0, text.offsetY || 0];
       ctx.fillStyle = text.color;
       ctx.font = `${text.fontSize}px ${textFontFamily}`;
       ctx.textBaseline = "top";
       ctx.textAlign = "left";
-      ctx.fillText(text.text, text.x + (text.offsetX || 0), text.y);
+      ctx.fillText(text.text, text.x + (offset[0] || 0), text.y + (offset[1] || 0));
     });
 
     ctx.restore();
@@ -560,27 +563,38 @@
           const data = JSON.parse(reader.result);
           const lines = Array.isArray(data.lines) ? data.lines : [];
           const texts = Array.isArray(data.texts) ? data.texts : [];
-          state.lines = lines.map((line) => ({
-            start: line.start,
-            end: line.end,
-            color: line.color || state.currentColor,
-            width: line.width || 1,
-            style: line.style || "solid",
-            startCapStyle: line.startCapStyle || "none",
-            endCapStyle: line.endCapStyle || "none",
-            offsetStartX: line.offsetStartX || 0,
-            offsetEndX: line.offsetEndX || 0,
-            offsetStartY: line.offsetStartY || 0,
-            offsetEndY: line.offsetEndY || 0
-          }));
-          state.texts = texts.map((text) => ({
-            x: text.x,
-            y: text.y,
-            text: text.text || "Text",
-            fontSize: text.fontSize || defaultTextSize,
-            color: text.color || state.currentColor,
-            offsetX: text.offsetX || 0
-          }));
+          state.lines = lines.map((line) => {
+            let offsets = line.offsets;
+            if (!Array.isArray(offsets)) {
+              offsets = [
+                [line.offsetStartX || 0, line.offsetStartY || 0],
+                [line.offsetEndX || 0, line.offsetEndY || 0]
+              ];
+            }
+            return {
+              start: line.start,
+              end: line.end,
+              color: line.color || state.currentColor,
+              width: line.width || 1,
+              style: line.style || "solid",
+              startCapStyle: line.startCapStyle || "none",
+              endCapStyle: line.endCapStyle || "none",
+              offsets
+            };
+          });
+          state.texts = texts.map((text) => {
+            const offset = Array.isArray(text.offset)
+              ? text.offset
+              : [text.offsetX || 0, text.offsetY || 0];
+            return {
+              x: text.x,
+              y: text.y,
+              text: text.text || "Text",
+              fontSize: text.fontSize || defaultTextSize,
+              color: text.color || state.currentColor,
+              offset
+            };
+          });
           rebuildSelectionIndex();
           propertiesPanel.update();
           drawAll();

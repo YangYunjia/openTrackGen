@@ -29,10 +29,7 @@ class LineController {
       style: this.state.lineStyle,
       startCapStyle: this.state.lineStartCapStyle || "none",
       endCapStyle: this.state.lineEndCapStyle || "none",
-      offsetStartX: this.state.lineOffsetStartX || 0,
-      offsetEndX: this.state.lineOffsetEndX || 0,
-      offsetStartY: this.state.lineOffsetStartY || 0,
-      offsetEndY: this.state.lineOffsetEndY || 0
+      offsets: this.state.lineOffsets.map((pair) => [pair[0] || 0, pair[1] || 0])
     };
     this.state.lines.push(line);
     return line;
@@ -62,10 +59,11 @@ class LineController {
         selectedItem.index === index;
       const strokeWidth = line.width || 1;
       const cap = "round";
-      const ax = line.start.x + (line.offsetStartX || 0);
-      const ay = line.start.y + (line.offsetStartY || 0);
-      const bx = line.end.x + (line.offsetEndX || 0);
-      const by = line.end.y + (line.offsetEndY || 0);
+      const offsets = Array.isArray(line.offsets) ? line.offsets : [[0, 0], [0, 0]];
+      const ax = line.start.x + (offsets[0]?.[0] || 0);
+      const ay = line.start.y + (offsets[0]?.[1] || 0);
+      const bx = line.end.x + (offsets[1]?.[0] || 0);
+      const by = line.end.y + (offsets[1]?.[1] || 0);
       const dx = bx - ax;
       const dy = by - ay;
       const len = Math.hypot(dx, dy);
@@ -116,10 +114,10 @@ class LineController {
       scale,
       setTransform,
       this.state.currentColor,
-      this.state.lineOffsetStartX,
-      this.state.lineOffsetEndX,
-      this.state.lineOffsetStartY,
-      this.state.lineOffsetEndY,
+      this.state.lineOffsets[0][0],
+      this.state.lineOffsets[1][0],
+      this.state.lineOffsets[0][1],
+      this.state.lineOffsets[1][1],
       this.state.lineStartCapStyle,
       this.state.lineEndCapStyle
     );
@@ -129,10 +127,11 @@ class LineController {
     this.state.lines.forEach((line) => {
       const strokeWidth = line.width || 1;
       const cap = "round";
-      const ax = line.start.x + (line.offsetStartX || 0);
-      const ay = line.start.y + (line.offsetStartY || 0);
-      const bx = line.end.x + (line.offsetEndX || 0);
-      const by = line.end.y + (line.offsetEndY || 0);
+      const offsets = Array.isArray(line.offsets) ? line.offsets : [[0, 0], [0, 0]];
+      const ax = line.start.x + (offsets[0]?.[0] || 0);
+      const ay = line.start.y + (offsets[0]?.[1] || 0);
+      const bx = line.end.x + (offsets[1]?.[0] || 0);
+      const by = line.end.y + (offsets[1]?.[1] || 0);
       const dx = bx - ax;
       const dy = by - ay;
       const len = Math.hypot(dx, dy);

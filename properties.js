@@ -18,16 +18,29 @@ class PropertiesPanel {
     this.lineStartOffsetY = document.getElementById("lineStartOffsetY");
     this.lineEndOffsetY = document.getElementById("lineEndOffsetY");
     this.textOffset = document.getElementById("textOffset");
+    this.textOffsetY = document.getElementById("textOffsetY");
     this.lineStartOffsetValue = document.getElementById("lineStartOffsetValue");
     this.lineEndOffsetValue = document.getElementById("lineEndOffsetValue");
     this.lineStartOffsetYValue = document.getElementById("lineStartOffsetYValue");
     this.lineEndOffsetYValue = document.getElementById("lineEndOffsetYValue");
     this.textOffsetValue = document.getElementById("textOffsetValue");
+    this.textOffsetYValue = document.getElementById("textOffsetYValue");
     this.propStatus = document.getElementById("propStatus");
     this.propType = document.getElementById("propType");
     this.propId = document.getElementById("propId");
     this.propText = document.getElementById("propText");
     this.btnDeleteSelected = document.getElementById("btnDeleteSelected");
+
+    this.lineOffsetControls = [
+      { input: this.lineStartOffset, valueEl: this.lineStartOffsetValue, index: 0, axis: 0 },
+      { input: this.lineStartOffsetY, valueEl: this.lineStartOffsetYValue, index: 0, axis: 1 },
+      { input: this.lineEndOffset, valueEl: this.lineEndOffsetValue, index: 1, axis: 0 },
+      { input: this.lineEndOffsetY, valueEl: this.lineEndOffsetYValue, index: 1, axis: 1 }
+    ];
+    this.textOffsetControls = [
+      { input: this.textOffset, valueEl: this.textOffsetValue, axis: 0 },
+      { input: this.textOffsetY, valueEl: this.textOffsetYValue, axis: 1 }
+    ];
 
     this.bindEvents();
   }
@@ -112,79 +125,42 @@ class PropertiesPanel {
       this.state.lineEndCapStyle = value;
     });
 
-    this.lineStartOffset.addEventListener("input", (e) => {
-      const value = Number(e.target.value) || 0;
-      this.lineStartOffsetValue.textContent = String(value);
-      if (this.state.tool === "select") {
-        const item = this.selectionTool.getSelectedItem();
-        if (item && item.kind === "line") {
-          this.state.lines[item.index].offsetStartX = value;
-          this.rebuildSelectionIndex();
-          this.drawLines();
-          return;
+    this.lineOffsetControls.forEach((control) => {
+      control.input.addEventListener("input", (e) => {
+        const value = Number(e.target.value) || 0;
+        control.valueEl.textContent = String(value);
+        if (this.state.tool === "select") {
+          const item = this.selectionTool.getSelectedItem();
+          if (item && item.kind === "line") {
+            const offsets = Array.isArray(item.data.offsets) ? item.data.offsets : [[0, 0], [0, 0]];
+            offsets[control.index][control.axis] = value;
+            this.state.lines[item.index].offsets = offsets;
+            this.rebuildSelectionIndex();
+            this.drawLines();
+            return;
+          }
         }
-      }
-      this.state.lineOffsetStartX = value;
+        this.state.lineOffsets[control.index][control.axis] = value;
+      });
     });
 
-    this.lineStartOffsetY.addEventListener("input", (e) => {
-      const value = Number(e.target.value) || 0;
-      this.lineStartOffsetYValue.textContent = String(value);
-      if (this.state.tool === "select") {
-        const item = this.selectionTool.getSelectedItem();
-        if (item && item.kind === "line") {
-          this.state.lines[item.index].offsetStartY = value;
-          this.rebuildSelectionIndex();
-          this.drawLines();
-          return;
+    this.textOffsetControls.forEach((control) => {
+      control.input.addEventListener("input", (e) => {
+        const value = Number(e.target.value) || 0;
+        control.valueEl.textContent = String(value);
+        if (this.state.tool === "select") {
+          const item = this.selectionTool.getSelectedItem();
+          if (item && item.kind === "text") {
+            const offset = Array.isArray(item.data.offset) ? item.data.offset : [0, 0];
+            offset[control.axis] = value;
+            this.state.texts[item.index].offset = offset;
+            this.rebuildSelectionIndex();
+            this.drawLines();
+            return;
+          }
         }
-      }
-      this.state.lineOffsetStartY = value;
-    });
-
-    this.lineEndOffset.addEventListener("input", (e) => {
-      const value = Number(e.target.value) || 0;
-      this.lineEndOffsetValue.textContent = String(value);
-      if (this.state.tool === "select") {
-        const item = this.selectionTool.getSelectedItem();
-        if (item && item.kind === "line") {
-          this.state.lines[item.index].offsetEndX = value;
-          this.rebuildSelectionIndex();
-          this.drawLines();
-          return;
-        }
-      }
-      this.state.lineOffsetEndX = value;
-    });
-
-    this.lineEndOffsetY.addEventListener("input", (e) => {
-      const value = Number(e.target.value) || 0;
-      this.lineEndOffsetYValue.textContent = String(value);
-      if (this.state.tool === "select") {
-        const item = this.selectionTool.getSelectedItem();
-        if (item && item.kind === "line") {
-          this.state.lines[item.index].offsetEndY = value;
-          this.rebuildSelectionIndex();
-          this.drawLines();
-          return;
-        }
-      }
-      this.state.lineOffsetEndY = value;
-    });
-
-    this.textOffset.addEventListener("input", (e) => {
-      const value = Number(e.target.value) || 0;
-      this.textOffsetValue.textContent = String(value);
-      if (this.state.tool === "select") {
-        const item = this.selectionTool.getSelectedItem();
-        if (item && item.kind === "text") {
-          this.state.texts[item.index].offsetX = value;
-          this.rebuildSelectionIndex();
-          this.drawLines();
-          return;
-        }
-      }
-      this.state.textOffsetX = value;
+        this.state.textOffset[control.axis] = value;
+      });
     });
 
   }
@@ -210,11 +186,12 @@ class PropertiesPanel {
     this.lineStyleSelect.disabled = !canEditLine;
     this.lineStartCapSelect.disabled = !canEditLine;
     this.lineEndCapSelect.disabled = !canEditLine;
-    this.lineStartOffset.disabled = !canEditLine;
-    this.lineEndOffset.disabled = !canEditLine;
-    this.lineStartOffsetY.disabled = !canEditLine;
-    this.lineEndOffsetY.disabled = !canEditLine;
-    this.textOffset.disabled = !canEditText;
+    this.lineOffsetControls.forEach((control) => {
+      control.input.disabled = !canEditLine;
+    });
+    this.textOffsetControls.forEach((control) => {
+      control.input.disabled = !canEditText;
+    });
     this.colorPanel.setEnabled(canEditLine || canEditText);
 
     if (isDraw) {
@@ -222,14 +199,23 @@ class PropertiesPanel {
       this.lineStyleSelect.value = this.state.lineStyle;
       this.lineStartCapSelect.value = this.state.lineStartCapStyle;
       this.lineEndCapSelect.value = this.state.lineEndCapStyle;
-      this.setOffsetControl(this.lineStartOffset, this.lineStartOffsetValue, this.state.lineOffsetStartX);
-      this.setOffsetControl(this.lineStartOffsetY, this.lineStartOffsetYValue, this.state.lineOffsetStartY);
-      this.setOffsetControl(this.lineEndOffset, this.lineEndOffsetValue, this.state.lineOffsetEndX);
-      this.setOffsetControl(this.lineEndOffsetY, this.lineEndOffsetYValue, this.state.lineOffsetEndY);
+      this.lineOffsetControls.forEach((control) => {
+        this.setOffsetControl(
+          control.input,
+          control.valueEl,
+          this.state.lineOffsets[control.index][control.axis]
+        );
+      });
     }
 
     if (isText) {
-      this.setOffsetControl(this.textOffset, this.textOffsetValue, this.state.textOffsetX);
+      this.textOffsetControls.forEach((control) => {
+        this.setOffsetControl(
+          control.input,
+          control.valueEl,
+          this.state.textOffset[control.axis]
+        );
+      });
     }
   }
 
@@ -266,10 +252,14 @@ class PropertiesPanel {
       this.lineStyleSelect.value = line.style || "solid";
       this.lineStartCapSelect.value = line.startCapStyle || "none";
       this.lineEndCapSelect.value = line.endCapStyle || "none";
-      this.setOffsetControl(this.lineStartOffset, this.lineStartOffsetValue, line.offsetStartX || 0);
-      this.setOffsetControl(this.lineStartOffsetY, this.lineStartOffsetYValue, line.offsetStartY || 0);
-      this.setOffsetControl(this.lineEndOffset, this.lineEndOffsetValue, line.offsetEndX || 0);
-      this.setOffsetControl(this.lineEndOffsetY, this.lineEndOffsetYValue, line.offsetEndY || 0);
+      const offsets = Array.isArray(line.offsets) ? line.offsets : [[0, 0], [0, 0]];
+      this.lineOffsetControls.forEach((control) => {
+        this.setOffsetControl(
+          control.input,
+          control.valueEl,
+          offsets[control.index][control.axis]
+        );
+      });
       this.colorPanel.setSwatch(line.color || this.state.currentColor);
       this.propText.value = "";
       this.propText.disabled = true;
@@ -277,7 +267,14 @@ class PropertiesPanel {
       const text = item.data;
       this.propText.value = text.text;
       this.propText.disabled = false;
-      this.setOffsetControl(this.textOffset, this.textOffsetValue, text.offsetX || 0);
+      const offset = Array.isArray(text.offset) ? text.offset : [text.offsetX || 0, text.offsetY || 0];
+      this.textOffsetControls.forEach((control) => {
+        this.setOffsetControl(
+          control.input,
+          control.valueEl,
+          offset[control.axis]
+        );
+      });
       this.colorPanel.setSwatch(text.color || this.state.currentColor);
     }
     this.btnDeleteSelected.disabled = false;
@@ -289,16 +286,16 @@ class PropertiesPanel {
     this.lineStyleSelect.value = this.state.lineStyle;
     this.lineStartCapSelect.value = this.state.lineStartCapStyle;
     this.lineEndCapSelect.value = this.state.lineEndCapStyle;
-    this.lineStartOffset.value = String(this.state.lineOffsetStartX);
-    this.lineEndOffset.value = String(this.state.lineOffsetEndX);
-    this.lineStartOffsetY.value = String(this.state.lineOffsetStartY);
-    this.lineEndOffsetY.value = String(this.state.lineOffsetEndY);
-    this.textOffset.value = String(this.state.textOffsetX);
-    this.lineStartOffsetValue.textContent = String(this.state.lineOffsetStartX);
-    this.lineEndOffsetValue.textContent = String(this.state.lineOffsetEndX);
-    this.lineStartOffsetYValue.textContent = String(this.state.lineOffsetStartY);
-    this.lineEndOffsetYValue.textContent = String(this.state.lineOffsetEndY);
-    this.textOffsetValue.textContent = String(this.state.textOffsetX);
+    this.lineOffsetControls.forEach((control) => {
+      const value = this.state.lineOffsets[control.index][control.axis];
+      control.input.value = String(value);
+      control.valueEl.textContent = String(value);
+    });
+    this.textOffsetControls.forEach((control) => {
+      const value = this.state.textOffset[control.axis];
+      control.input.value = String(value);
+      control.valueEl.textContent = String(value);
+    });
     this.colorPanel.setSwatch(this.state.currentColor);
     this.update();
   }

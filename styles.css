@@ -271,6 +271,10 @@ canvas {
   grid-column: 1 / -1;
 }
 
+.property-grid > .property-row:nth-of-type(4) {
+  grid-column: 1 / -1;
+}
+
 @media (max-width: 720px) {
   :root { --toolbar-w: 110px; --property-w: 180px; }
   .tool-btn { font-size: 12px; }
