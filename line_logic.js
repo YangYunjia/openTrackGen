@@ -45,18 +45,13 @@ class LineController {
     ctx.lineCap = "round";
 
     const hoveredItem = selectionTool.getHoveredItem();
-    const selectedItem = selectionTool.getSelectedItem();
-
     this.state.lines.forEach((line, index) => {
       const isHover =
         (this.state.tool === "select" || this.state.tool === "delete") &&
         hoveredItem &&
         hoveredItem.kind === "line" &&
         hoveredItem.index === index;
-      const isSelected =
-        selectedItem &&
-        selectedItem.kind === "line" &&
-        selectedItem.index === index;
+      const isSelected = selectionTool.isSelectedIndex(index);
       const strokeWidth = line.width || 1;
       const cap = "round";
       const offsets = Array.isArray(line.offsets) ? line.offsets : [[0, 0], [0, 0]];

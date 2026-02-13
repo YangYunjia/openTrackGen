@@ -33,6 +33,18 @@
     texts: [],
     tool: "draw"
   };
+  const selectionBox = {
+    active: false,
+    start: { x: 0, y: 0 },
+    end: { x: 0, y: 0 }
+  };
+  const moveMode = {
+    active: false,
+    lastWorld: null,
+    mouse: { x: 0, y: 0 },
+    baseCenter: null,
+    originals: []
+  };
 
   // Grid size in world units and hover snap radius in screen pixels.
   const gridSize = 10;
@@ -262,7 +274,7 @@
     });
 
     const hovered = selectionTool.getHoveredItem();
-    const selected = selectionTool.getSelectedItem();
+    const selectedItems = selectionTool.getSelectedItems();
     const highlightText = (item, color) => {
       if (!item || item.kind !== "text") return;
       const box = item.data.__box || measureTextBox(item.data.text, item.data.fontSize);
@@ -278,7 +290,7 @@
       );
     };
     highlightText(hovered, "#c5482a");
-    highlightText(selected, "#8b2f1a");
+    selectedItems.forEach((item) => highlightText(item, "#8b2f1a"));
 
     ctx.restore();
   };
@@ -299,6 +311,29 @@
       ctx.lineWidth = 2 / state.scale;
       ctx.beginPath();
       ctx.arc(textHoverPoint.x, textHoverPoint.y, 4 / state.scale, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    if (selectionBox.active) {
+      const minX = Math.min(selectionBox.start.x, selectionBox.end.x);
+      const minY = Math.min(selectionBox.start.y, selectionBox.end.y);
+      const maxX = Math.max(selectionBox.start.x, selectionBox.end.x);
+      const maxY = Math.max(selectionBox.start.y, selectionBox.end.y);
+      ctx.strokeStyle = "#c5482a";
+      ctx.lineWidth = 1 / state.scale;
+      ctx.setLineDash([4 / state.scale, 4 / state.scale]);
+      ctx.strokeRect(minX, minY, maxX - minX, maxY - minY);
+      ctx.setLineDash([]);
+    }
+    if (moveMode.active) {
+      const world = screenToWorld(moveMode.mouse.x, moveMode.mouse.y);
+      const snapped = {
+        x: Math.round(world.x / gridSize) * gridSize,
+        y: Math.round(world.y / gridSize) * gridSize
+      };
+      ctx.strokeStyle = "#c5482a";
+      ctx.lineWidth = 2 / state.scale;
+      ctx.beginPath();
+      ctx.arc(snapped.x, snapped.y, 4 / state.scale, 0, Math.PI * 2);
       ctx.stroke();
     }
 
@@ -343,12 +378,50 @@
     const rect = overlayCanvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
+    moveMode.mouse = { x, y };
     if (state.isPanning) {
       const dx = x - state.panStart.x;
       const dy = y - state.panStart.y;
       state.offsetX = state.offsetStart.x + dx;
       state.offsetY = state.offsetStart.y + dy;
       drawAll();
+      return;
+    }
+
+    if (moveMode.active) {
+      const world = screenToWorld(x, y);
+      const snapped = {
+        x: Math.round(world.x / gridSize) * gridSize,
+        y: Math.round(world.y / gridSize) * gridSize
+      };
+      if (moveMode.baseCenter && moveMode.originals.length) {
+        const dx = snapped.x - moveMode.baseCenter.x;
+        const dy = snapped.y - moveMode.baseCenter.y;
+        moveMode.originals.forEach((item) => {
+          if (item.kind === "line") {
+            const line = state.lines[item.index];
+            line.start.x = item.start.x + dx;
+            line.start.y = item.start.y + dy;
+            line.end.x = item.end.x + dx;
+            line.end.y = item.end.y + dy;
+          } else if (item.kind === "text") {
+            const text = state.texts[item.index];
+            text.x = item.pos.x + dx;
+            text.y = item.pos.y + dy;
+          }
+        });
+        rebuildSelectionIndex();
+        drawAll();
+      }
+      moveMode.lastWorld = world;
+      drawOverlay();
+      return;
+    }
+
+    if (selectionBox.active) {
+      const world = screenToWorld(x, y);
+      selectionBox.end = world;
+      drawOverlay();
       return;
     }
 
@@ -368,6 +441,14 @@
     const rect = overlayCanvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
+    if (moveMode.active && e.button === 0) {
+      moveMode.active = false;
+      moveMode.lastWorld = null;
+      moveMode.baseCenter = null;
+      moveMode.originals = [];
+      drawAll();
+      return;
+    }
     if (e.button === 1) {
       state.isPanning = true;
       state.panStart = { x, y };
@@ -402,9 +483,22 @@
 
       updateHover(x, y);
       if (state.tool === "select") {
-        selectionTool.selectHover();
-        propertiesPanel.update();
-        drawAll();
+        const hovered = selectionTool.getHoveredItem();
+        if (hovered) {
+          if (e.ctrlKey) {
+            selectionTool.toggleSelect(selectionTool.hoverIndex);
+          } else {
+            selectionTool.setSelection([selectionTool.hoverIndex]);
+          }
+          propertiesPanel.update();
+          drawAll();
+          return;
+        }
+        const world = screenToWorld(x, y);
+        selectionBox.active = true;
+        selectionBox.start = { x: world.x, y: world.y };
+        selectionBox.end = { x: world.x, y: world.y };
+        drawOverlay();
         return;
       }
 
@@ -441,6 +535,30 @@
       }
       drawOverlay();
       updateHud();
+    }
+
+    if (e.button === 0 && selectionBox.active) {
+      selectionBox.active = false;
+      rebuildSelectionIndex();
+      const minX = Math.min(selectionBox.start.x, selectionBox.end.x);
+      const minY = Math.min(selectionBox.start.y, selectionBox.end.y);
+      const maxX = Math.max(selectionBox.start.x, selectionBox.end.x);
+      const maxY = Math.max(selectionBox.start.y, selectionBox.end.y);
+      const items = buildSelectionItems();
+      const selected = [];
+      items.forEach((item, idx) => {
+        const box = getItemAabb(item);
+        if (!box) return;
+        const intersects = !(box.maxX < minX || box.minX > maxX || box.maxY < minY || box.minY > maxY);
+        if (intersects) selected.push(idx);
+      });
+      if (e.ctrlKey) {
+        selected.forEach((idx) => selectionTool.addSelect(idx));
+      } else {
+        selectionTool.setSelection(selected);
+      }
+      propertiesPanel.update();
+      drawAll();
     }
   };
 
@@ -486,6 +604,10 @@
     if (tool !== "select") {
       selectionTool.clearSelection();
       propertiesPanel.update();
+    }
+    if (tool !== "select") {
+      selectionBox.active = false;
+      moveMode.active = false;
     }
     lineController.reset();
     textHoverPoint = null;
@@ -544,7 +666,49 @@
       rebuildSelectionIndex,
       drawLines,
       drawAll,
-      colorPanel
+      colorPanel,
+      onMoveSelected: () => {
+        const selectedItems = selectionTool.getSelectedItems();
+        if (!selectedItems.length) return;
+        let minX = Infinity;
+        let minY = Infinity;
+        let maxX = -Infinity;
+        let maxY = -Infinity;
+        const originals = [];
+        selectedItems.forEach((item) => {
+          const box = getItemAabb(item);
+          if (box) {
+            minX = Math.min(minX, box.minX);
+            minY = Math.min(minY, box.minY);
+            maxX = Math.max(maxX, box.maxX);
+            maxY = Math.max(maxY, box.maxY);
+          }
+          if (item.kind === "line") {
+            originals.push({
+              kind: "line",
+              index: item.index,
+              start: { x: item.data.start.x, y: item.data.start.y },
+              end: { x: item.data.end.x, y: item.data.end.y }
+            });
+          } else if (item.kind === "text") {
+            originals.push({
+              kind: "text",
+              index: item.index,
+              pos: { x: item.data.x, y: item.data.y }
+            });
+          }
+        });
+        if (!originals.length || !isFinite(minX)) return;
+        const rawCenter = { x: (minX + maxX) / 2, y: (minY + maxY) / 2 };
+        moveMode.baseCenter = {
+          x: Math.round(rawCenter.x / gridSize) * gridSize,
+          y: Math.round(rawCenter.y / gridSize) * gridSize
+        };
+        moveMode.originals = originals;
+        moveMode.active = true;
+        moveMode.lastWorld = null;
+        drawOverlay();
+      }
     });
     propertiesPanel.init();
     resize();

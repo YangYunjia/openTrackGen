@@ -8,6 +8,7 @@ class PropertiesPanel {
     this.drawLines = options.drawLines;
     this.drawAll = options.drawAll;
     this.colorPanel = options.colorPanel;
+    this.onMoveSelected = options.onMoveSelected;
 
     this.lineWidthSelect = document.getElementById("lineWidthSelect");
     this.lineStyleSelect = document.getElementById("lineStyleSelect");
@@ -30,6 +31,7 @@ class PropertiesPanel {
     this.propId = document.getElementById("propId");
     this.linePresetSelect = document.getElementById("linePresetSelect");
     this.propText = document.getElementById("propText");
+    this.btnMoveSelected = document.getElementById("btnMoveSelected");
     this.btnDeleteSelected = document.getElementById("btnDeleteSelected");
 
     this.lineOffsetControls = [
@@ -50,18 +52,26 @@ class PropertiesPanel {
 
   bindEvents() {
     this.btnDeleteSelected.addEventListener("click", () => {
-      const item = this.selectionTool.getSelectedItem();
-      if (!item) return;
-      if (item.kind === "line") {
-        this.state.lines.splice(item.index, 1);
-      }
-      if (item.kind === "text") {
-        this.state.texts.splice(item.index, 1);
-      }
+      const items = this.selectionTool.getSelectedItems();
+      if (!items.length) return;
+      const lineIndices = [];
+      const textIndices = [];
+      items.forEach((item) => {
+        if (item.kind === "line") lineIndices.push(item.index);
+        if (item.kind === "text") textIndices.push(item.index);
+      });
+      lineIndices.sort((a, b) => b - a).forEach((idx) => this.state.lines.splice(idx, 1));
+      textIndices.sort((a, b) => b - a).forEach((idx) => this.state.texts.splice(idx, 1));
       this.rebuildSelectionIndex();
       this.selectionTool.clearSelection();
       this.update();
       this.drawAll();
+    });
+
+    this.btnMoveSelected.addEventListener("click", () => {
+      if (typeof this.onMoveSelected === "function") {
+        this.onMoveSelected();
+      }
     });
 
     this.propText.addEventListener("input", (e) => {
@@ -184,7 +194,8 @@ class PropertiesPanel {
   }
 
   updateLineControlsForContext() {
-    const selected = this.selectionTool.getSelectedItem();
+    const selectedItems = this.selectionTool.getSelectedItems();
+    const selected = selectedItems.length === 1 ? selectedItems[0] : null;
     const isDraw = this.state.tool === "draw";
     const isText = this.state.tool === "text";
     const canEditLine =
@@ -232,29 +243,32 @@ class PropertiesPanel {
   }
 
   update() {
-    if (this.selectionTool.selectedIndex === null) {
+    const selectedItems = this.selectionTool.getSelectedItems();
+    if (!selectedItems.length) {
       this.propStatus.textContent = "None";
       this.propType.textContent = "-";
       this.propId.textContent = "-";
       this.propText.value = "";
       this.propText.disabled = true;
       this.btnDeleteSelected.disabled = true;
+      this.btnMoveSelected.disabled = true;
       this.colorPanel.setSwatch(this.state.currentColor);
       this.updateLineControlsForContext();
       return;
     }
-    const item = this.selectionTool.getSelectedItem();
-    if (!item) {
-      this.propStatus.textContent = "None";
+    if (selectedItems.length > 1) {
+      this.propStatus.textContent = `Selected (${selectedItems.length})`;
       this.propType.textContent = "-";
       this.propId.textContent = "-";
       this.propText.value = "";
       this.propText.disabled = true;
-      this.btnDeleteSelected.disabled = true;
+      this.btnDeleteSelected.disabled = false;
+      this.btnMoveSelected.disabled = false;
       this.colorPanel.setSwatch(this.state.currentColor);
       this.updateLineControlsForContext();
       return;
     }
+    const item = selectedItems[0];
     this.propStatus.textContent = "Selected";
     this.propType.textContent = item.kind;
     this.propId.textContent = String(item.index);
@@ -290,6 +304,7 @@ class PropertiesPanel {
       this.colorPanel.setSwatch(text.color || this.state.currentColor);
     }
     this.btnDeleteSelected.disabled = false;
+    this.btnMoveSelected.disabled = false;
     this.updateLineControlsForContext();
   }
 

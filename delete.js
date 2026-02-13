@@ -109,6 +109,7 @@ class SelectionManager {
     this.index = new UniformGridIndex(this.cellSize);
     this.hoverIndex = null;
     this.selectedIndex = null;
+    this.selectedIndices = new Set();
   }
 
   rebuild(items, getAabb) {
@@ -118,6 +119,16 @@ class SelectionManager {
     this.index.rebuild(items, getAabb);
     if (this.selectedIndex !== null && !items[this.selectedIndex]) {
       this.selectedIndex = null;
+    }
+    if (this.selectedIndices.size) {
+      const next = new Set();
+      this.selectedIndices.forEach((idx) => {
+        if (items[idx]) next.add(idx);
+      });
+      this.selectedIndices = next;
+      if (this.selectedIndex !== null && !this.selectedIndices.has(this.selectedIndex)) {
+        this.selectedIndex = this.selectedIndices.size ? Array.from(this.selectedIndices)[0] : null;
+      }
     }
   }
 
@@ -137,11 +148,16 @@ class SelectionManager {
 
   selectHover() {
     this.selectedIndex = this.hoverIndex;
+    this.selectedIndices.clear();
+    if (this.hoverIndex !== null) {
+      this.selectedIndices.add(this.hoverIndex);
+    }
     return this.selectedIndex;
   }
 
   clearSelection() {
     this.selectedIndex = null;
+    this.selectedIndices.clear();
   }
 }
 
@@ -168,6 +184,34 @@ class SelectionToolBase {
     return this.manager.selectHover();
   }
 
+  setSelection(indices) {
+    this.manager.selectedIndices.clear();
+    indices.forEach((idx) => {
+      if (idx !== null && idx !== undefined) this.manager.selectedIndices.add(idx);
+    });
+    this.manager.selectedIndex = this.manager.selectedIndices.size
+      ? Array.from(this.manager.selectedIndices)[0]
+      : null;
+  }
+
+  toggleSelect(index) {
+    if (index === null || index === undefined) return;
+    if (this.manager.selectedIndices.has(index)) {
+      this.manager.selectedIndices.delete(index);
+    } else {
+      this.manager.selectedIndices.add(index);
+    }
+    this.manager.selectedIndex = this.manager.selectedIndices.size
+      ? Array.from(this.manager.selectedIndices)[0]
+      : null;
+  }
+
+  addSelect(index) {
+    if (index === null || index === undefined) return;
+    this.manager.selectedIndices.add(index);
+    this.manager.selectedIndex = index;
+  }
+
   clearHover() {
     this.manager.hoverIndex = null;
   }
@@ -191,6 +235,20 @@ class SelectionToolBase {
   getSelectedItem() {
     if (this.manager.selectedIndex === null) return null;
     return this.items[this.manager.selectedIndex] || null;
+  }
+
+  getSelectedItems() {
+    if (!this.manager.selectedIndices.size) return [];
+    const result = [];
+    this.manager.selectedIndices.forEach((idx) => {
+      const item = this.items[idx];
+      if (item) result.push(item);
+    });
+    return result;
+  }
+
+  isSelectedIndex(index) {
+    return this.manager.selectedIndices.has(index);
   }
 
   getHoveredItem() {
